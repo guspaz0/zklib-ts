@@ -11,7 +11,8 @@ const {
     decodeRecordRealTimeLog18,
     decodeUDPHeader,
     exportErrorMessage,
-    checkNotEventUDP
+    checkNotEventUDP,
+    authKey
 } = require('./helper/utils')
 
 const {MAX_CHUNK, REQUEST_DATA, COMMANDS} = require('./helper/command')
@@ -20,7 +21,7 @@ const { log } = require('./logs/log')
 const timeParser = require("./helper/time");
 
 class ZUDP {
-    constructor(ip, port, timeout, inport) {
+    constructor(ip, port, timeout, inport, comm_key = 0) {
         this.ip = ip
         this.port = port
         this.timeout = timeout
@@ -28,6 +29,7 @@ class ZUDP {
         this.sessionId = null
         this.replyId = 0
         this.inport = inport
+        this.comm_key = comm_key
     }
 
 
@@ -68,10 +70,20 @@ class ZUDP {
 
     async connect() {
         try {
-            const reply = await this.executeCmd(COMMANDS.CMD_CONNECT, '');
-
-            if (reply) {
-                return true; // Resolve with true if the reply is valid
+            let reply = await this.executeCmd(COMMANDS.CMD_CONNECT, '');
+            console.log(reply.readUInt16LE(0))
+            if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_OK) {
+                return true
+            }
+            if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_UNAUTH) {
+                const hashedCommkey = authKey(this.comm_key, this.sessionId)
+                reply = await this.executeCmd(COMMANDS.CMD_AUTH, hashedCommkey)
+                
+                if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_OK) {
+                    return true
+                } else {
+                    throw new Error("error de authenticacion")
+                }
             } else {
                 throw new Error('NO_REPLY_ON_CMD_CONNECT'); // Throw an error if no reply
             }

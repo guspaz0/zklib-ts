@@ -28,7 +28,7 @@ yarn add zkteco-js
 const Zkteco = require("zkteco-js");
 
 const manageZktecoDevice = async () => {
-    const device = new Zkteco("192.168.1.106", 4370, 5200, 5000);
+    const device = new Zkteco("192.168.1.106", 4370, 5200, 5000, 1234);
 
     try {
         // Create socket connection to the device

@@ -10,15 +10,16 @@ const ZUDP = require('./src/zudp')
 const {ZkError, ERROR_TYPES} = require('./src/exceptions/handler')
 
 class ZktecoJs {
-    constructor(ip, port, timeout, inport) {
+    constructor(ip, port, timeout, inport, comm_key = 0) {
         this.connectionType = null
 
-        this.ztcp = new ZTCP(ip, port, timeout)
+        this.ztcp = new ZTCP(ip, port, timeout, comm_key)
         this.zudp = new ZUDP(ip, port, timeout, inport)
         this.interval = null
         this.timer = null
         this.isBusy = false
         this.ip = ip
+        this.comm_key = comm_key
     }
 
     async functionWrapper(tcpCallback, udpCallback, command) {

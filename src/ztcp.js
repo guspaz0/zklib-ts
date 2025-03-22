@@ -17,20 +17,22 @@ const {
     decodeRecordData40,
     decodeRecordRealTimeLog52,
     checkNotEventTCP,
-    decodeTCPHeader
+    decodeTCPHeader,
+    authKey
 } = require('./helper/utils')
 
 const {log} = require('./logs/log')
 const {error} = require('console')
 
 class ZTCP {
-    constructor(ip, port, timeout) {
+    constructor(ip, port, timeout, comm_key) {
         this.ip = ip;
         this.port = port;
         this.timeout = timeout;
         this.sessionId = null;
         this.replyId = 0;
         this.socket = null;
+        this.comm_key = comm_key;
     }
 
     createSocket(cbError, cbClose) {
@@ -67,10 +69,20 @@ class ZTCP {
 
     async connect() {
         try {
-            const reply = await this.executeCmd(COMMANDS.CMD_CONNECT, '');
-            if (reply) {
-                // Connection successful
-                return true;
+            let reply = await this.executeCmd(COMMANDS.CMD_CONNECT, '');
+
+            if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_OK) {
+                return true
+            }
+            if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_UNAUTH) {
+                const hashedCommkey = authKey(this.comm_key, this.sessionId)
+                reply = await this.executeCmd(COMMANDS.CMD_AUTH, hashedCommkey)
+                
+                if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_OK) {
+                    return true
+                } else {
+                    throw new Error("error de authenticacion")
+                }
             } else {
                 // No reply received; throw an error
                 throw new Error('NO_REPLY_ON_CMD_CONNECT');

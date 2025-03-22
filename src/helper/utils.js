@@ -241,3 +241,70 @@ module.exports.checkNotEventUDP = (data) => {
     const commandId = this.decodeUDPHeader(data.subarray(0, 8)).commandId
     return commandId === COMMANDS.CMD_REG_EVENT
 }
+
+function makeKey(key, sessionId) {
+    let k = 0;
+
+    // Bit manipulation similar to the Java version
+    for (let i = 0; i < 32; i++) {
+        if ((key & (1 << i)) !== 0) {
+            k = (k << 1) | 1;
+        } else {
+            k = k << 1;
+        }
+    }
+
+    k += sessionId;
+
+    let hex = k.toString(16).padStart(8, "0");
+
+    let response = new Uint8Array(4);
+    let index = 3;
+
+    while (hex.length > 0) {
+        response[index] = parseInt(hex.substring(0, 2), 16);
+        index--;
+        hex = hex.substring(2);
+    }
+
+    // XOR with 'ZKSO'
+    response[0] ^= 'Z'.charCodeAt(0);
+    response[1] ^= 'K'.charCodeAt(0);
+    response[2] ^= 'S'.charCodeAt(0);
+    response[3] ^= 'O'.charCodeAt(0);
+
+    let finalKey =
+        response[0] +
+        (response[1] << 8) +
+        (response[2] << 16) +
+        (response[3] << 24);
+
+    // Swap high and low 16 bits
+    let swp = finalKey >>> 16;
+    finalKey = (finalKey << 16) | swp;
+
+    return finalKey >>> 0; // Ensure unsigned 32-bit
+}
+
+module.exports.authKey = (comKey, sessionId) => {
+    let k = makeKey(comKey, sessionId) >>> 0; // Convert to unsigned 32-bit
+    let rand = Math.floor(Math.random() * 256); // Random 8-bit number
+
+    let hex = k.toString(16).padStart(8, "0");
+    let response = new Uint8Array(4);
+    let index = 3;
+
+    while (index >= 0) {
+        response[index] = parseInt(hex.substring(0, 2), 16);
+        index--;
+        hex = hex.substring(2);
+    }
+
+    // XOR with random number
+    response[0] ^= rand;
+    response[1] ^= rand;
+    response[2] = rand;
+    response[3] ^= rand;
+
+    return Array.from(response);
+}
