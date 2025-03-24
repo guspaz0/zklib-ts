@@ -649,14 +649,29 @@ class ZTCP {
             this.oplog_count = buf.readUIntLE(40,4)
             this.attlog_count = buf.readUIntLE(32,4)
             this.fp_cap = buf.readUIntLE(56,4)
-            
-            this.records_count = buf.readUIntLE(32, 4)
-            this.rec_av = buf.readUIntLE(64, 4)
+            this.user_cap = buf.readUIntLE(60,4)
+            this.attlog_cap = buf.readUIntLE(64,4)
+            this.fp_av = buf.readUIntLE(68,4)
+            this.user_av = buf.readUIntLE(72,4)
+            this.attlog_av = buf.readUIntLE(76,4)
+            this.face_count = buf.readUIntLE(80,4)
+            this.face_cap = buf.readUIntLE(88,4)
 
             return {
-                userCounts: this.users_count, // Number of users
-                logCounts: this.records_count,  // Number of logs
-                logCapacity:  this.rec_av // Capacity of logs in bytes
+                userCounts: this.user_count, // Number of users
+                logCounts: this.attlog_count,  // Number of logs
+                fingerCount: this.fp_count,
+                adminCount: this.pwd_count,
+                opLogCount: this.oplog_count,
+                logCapacity:  this.attlog_cap, // Capacity of logs in bytes
+                fingerCapacity: this.fp_cap,
+                userCapacity: this.user_cap,
+                attLogCapacity: this.attlog_cap,
+                fingerAvailable: this.fp_av,
+                userAvailable: this.user_av,
+                attLogAvailable: this.attlog_av,
+                faceCount: this.face_count,
+                faceCapacity: this.face_cap
             };
         } catch (err) {
             // Log the error for debugging purposes
@@ -1171,14 +1186,31 @@ class ZTCP {
         }
     }
 
-    /** 
-    * @param_uid user ID that are generated from device
-    * @param_user_id your own user ID
-    * @return list Finger object of the selected user
-    */
-    async getUserTemplates(uid, temp_id = 0, user_id = ''){
+    async getUserTemplate(uid, temp_id = 0, user_id = '') {
+        if (temp_id < 0 || temp_id > 9) return false
         try {
+            if (!uid && user_id) {
+                let users = await this.getUsers()
+                let user = users.find(u => u.user_id == user_id)
+                if (!user) return false
+                uid = user.uid
+            }
+            //for (let i = 0; i < 3; i++) {
+                let command_string = Buffer.from([uid,0,temp_id])
+                let response_size = 1024 + 8
+                const data = await this.executeCmd(COMMANDS.CMD_GET_USERTEMP, command_string)
+                let command = data.readUIntLE(0,2)
+                let checksum = data.readUIntLE(2,2)
+                let sessionID = data.readUIntLE(4,2)
+                let reply_number = data.readUIntLE(6,2)
 
+                console.log("command:       ",Object.keys(COMMANDS).find(c => COMMANDS[c] == command))
+                console.log("checksum:      ",checksum)
+                console.log("sessionId:     ",sessionID)
+                console.log("reply number:  ",reply_number)
+
+                return data
+            //}
         } catch (err) {
             console.error('Error getting user tempaltes: ', err);
             throw err;

@@ -73,6 +73,7 @@ module.exports.COMMANDS = {
     CMD_VERIFY_WRQ: 79,
     CMD_VERIFY_RRQ: 80,
     CMD_TMP_WRITE: 87,
+    CMD_GET_USERTEMP: 88, // undocumented
     CMD_CHECKSUM_BUFFER: 119,
     CMD_DEL_FPTMP: 134,
     CMD_GET_TIME: 201,

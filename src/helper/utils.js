@@ -140,6 +140,7 @@ module.exports.decodeUserData72 = (userData) => {
             .split('\0')
             .shift(),
         cardno: userData.readUIntLE(35, 4),
+        groupno: userData.readUIntLE(39,1),
         userId: userData
             .slice(48, 48 + 9)
             .toString('ascii')
