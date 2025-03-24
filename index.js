@@ -10,7 +10,15 @@ const ZUDP = require('./src/zudp')
 const {ZkError, ERROR_TYPES} = require('./src/exceptions/handler')
 
 class ZktecoJs {
-    constructor(ip, port, timeout, inport, comm_key = 0) {
+    /** 
+    * @param {*} ip ip address of device
+    * @param {*} port port number of device
+    * @param {*} timeout connection timout
+    * @param {*} inport Required Only for UDP connection
+    * @param {*} comm_key communication key of device (if the case)
+    * @return Zkteco socket connection instance
+    */
+    constructor(ip, port, timeout, inport = 10000, comm_key = 0) {
         this.connectionType = null
 
         this.ztcp = new ZTCP(ip, port, timeout, comm_key)
@@ -234,24 +242,41 @@ class ZktecoJs {
         )
     }
 
+    /** 
+    * @param {*} uid internal uid
+    * @param {*} userid userid for external reference
+    * @param {*} name user name
+    * @param {*} password user password
+    * @param {*} role user role permission.
+    * @param {*} carno user card number
+    * @return {*} Zkteco TCP socket connection instance
+    */
     async setUser(uid, userid, name, password, role = 0, cardno = 0) {
         return await this.functionWrapper(
             () => this.ztcp.setUser(uid, userid, name, password, role, cardno)
         )
     }
-
+    /** 
+    * @param {*} uid internal user id
+    * @return void
+    */
     async deleteUser(uid) {
         return await this.functionWrapper(
             () => this.ztcp.deleteUser(uid)
         )
     }
-
+    /** 
+    * @return the number size of attendance records
+    */
     async getAttendanceSize() {
         return await this.functionWrapper(
             () => this.ztcp.getAttendanceSize()
         )
     }
 
+    /** 
+    * @return Array with All attendance records in device
+    */
     async getAttendances(cb) {
         return await this.functionWrapper(
             () => this.ztcp.getAttendances(cb),
@@ -263,6 +288,26 @@ class ZktecoJs {
         return await this.functionWrapper(
             () => this.ztcp.getRealTimeLogs(cb),
             () => this.zudp.getRealTimeLogs(cb)
+        )
+    }
+
+    /** 
+    * @param {*} uid user ID that are generated from device
+    * @param {*} user_id your own user ID
+    * @return list Finger object of the selected user
+    */
+    async getUserTemplates(uid, temp_id = 0, user_id = '') {
+        return await this.functionWrapper(
+            () => this.ztcp.getUserTemplates(uid, temp_id = 0, user_id = '')
+        )
+    }
+
+    /** 
+    * @return records, users and fingerprints capacity, available and counts.
+    */
+    async getSizes() {
+        return await this.functionWrapper(
+            () => this.ztcp.getSizes()
         )
     }
 

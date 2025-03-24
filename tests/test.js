@@ -10,7 +10,8 @@ const test = async () => {
     let zkInstance;
     try {
         // Create an instance of Zkteco with hard-coded values
-        zkInstance = new Zkteco('10.10.10.1', 4370, 10000, 4000, 1234);
+        
+        zkInstance = new Zkteco('192.168.137.201', 4370, 10000, 4000, 5814);
         // Create socket to machine
         await zkInstance.createSocket();
 
@@ -91,6 +92,8 @@ const test = async () => {
         // Get attendances and users
         const attendances = await zkInstance.getAttendances();
         console.log("Total Attendances: "+attendances.data.length);
+
+        const usertemplate = await zkInstance.getUserTemplates()
 
         console.log('-------test completed--------')
 

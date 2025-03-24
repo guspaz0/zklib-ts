@@ -21,10 +21,19 @@ const {
     authKey
 } = require('./helper/utils')
 
+
 const {log} = require('./logs/log')
 const {error} = require('console')
 
+
 class ZTCP {
+    /** 
+    * @param_ip ip address of device
+    * @param_port port number of device
+    * @param_timeout connection timout
+    * @param_comm_key communication key of device (if the case)
+    * @return Zkteco TCP socket connection instance
+    */
     constructor(ip, port, timeout, comm_key) {
         this.ip = ip;
         this.port = port;
@@ -33,7 +42,26 @@ class ZTCP {
         this.replyId = 0;
         this.socket = null;
         this.comm_key = comm_key;
+
+        this.admin_count = 0;
+        this.user_count = 0;
+        this.fp_count = 0;
+        this.pwd_count = 0;
+        this.oplog_count = 0;
+        this.attlog_count = 0;
+        this.dummy = 0; // ??
+        this.cards = 0;
+        this.fp_cap = 0;
+        this.user_cap = 0;
+        this.attlog_cap = 0;
+        this.fp_av = 0;
+        this.user_av = 0;
+        this.attlog_av = 0;
+        this.face_count = 0;
+        this.face_cap = 0;
+        this.__data = undefined;
     }
+    
 
     createSocket(cbError, cbClose) {
         return new Promise((resolve, reject) => {
@@ -608,6 +636,36 @@ class ZTCP {
         }
     }
 
+    async getSizes() {
+        try {
+            // Execute the command to retrieve free sizes from the device
+            const data = await this.executeCmd(COMMANDS.CMD_GET_FREE_SIZES, '');
+
+            // Parse the response data to extract and return relevant information
+            const buf = data.slice(8) // remove header
+            this.user_count = buf.readUIntLE(16, 4)
+            this.fp_count = buf.readUIntLE(24,4)
+            this.pwd_count = buf.readUIntLE(52,4)
+            this.oplog_count = buf.readUIntLE(40,4)
+            this.attlog_count = buf.readUIntLE(32,4)
+            this.fp_cap = buf.readUIntLE(56,4)
+            
+            this.records_count = buf.readUIntLE(32, 4)
+            this.rec_av = buf.readUIntLE(64, 4)
+
+            return {
+                userCounts: this.users_count, // Number of users
+                logCounts: this.records_count,  // Number of logs
+                logCapacity:  this.rec_av // Capacity of logs in bytes
+            };
+        } catch (err) {
+            // Log the error for debugging purposes
+            console.error('Error getting device info:', err);
+            // Re-throw the error to allow upstream error handling
+            throw err;
+        }
+    }
+
 
     async getVendor() {
         const keyword = '~OEMVendor';
@@ -1109,6 +1167,20 @@ class ZTCP {
         } catch (err) {
             // Handle errors and reject the promise
             console.error('Error getting real-time logs:', err);
+            throw err;
+        }
+    }
+
+    /** 
+    * @param_uid user ID that are generated from device
+    * @param_user_id your own user ID
+    * @return list Finger object of the selected user
+    */
+    async getUserTemplates(uid, temp_id = 0, user_id = ''){
+        try {
+
+        } catch (err) {
+            console.error('Error getting user tempaltes: ', err);
             throw err;
         }
     }
