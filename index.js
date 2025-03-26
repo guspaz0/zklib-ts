@@ -292,14 +292,11 @@ class ZktecoJs {
     }
 
     /** 
-    * @param {*} uid user ID that are generated from device
-    * @param {*} temp_id template id from 0 to 9
-    * @param {*} user_id your own user ID
-    * @return list Finger object of the selected user
+    * @return Array of all Finger objects
     */
-    async getUserTemplate(uid, temp_id = 0, user_id = '') {
+    async getTemplates(){
         return await this.functionWrapper(
-            () => this.ztcp.getUserTemplate(uid, temp_id = 0, user_id = '')
+            () => this.ztcp.getTemplates()
         )
     }
 

@@ -21,6 +21,8 @@ const {
     authKey
 } = require('./helper/utils')
 
+const {Finger} = require('./helper/models/Finger')
+const {User} = require('./helper/models/User')
 
 const {log} = require('./logs/log')
 const {error} = require('console')
@@ -1199,24 +1201,58 @@ class ZTCP {
                 let command_string = Buffer.from([uid,0,temp_id])
                 let response_size = 1024 + 8
                 const data = await this.executeCmd(COMMANDS.CMD_GET_USERTEMP, command_string)
-                let command = data.readUIntLE(0,2)
-                let checksum = data.readUIntLE(2,2)
-                let sessionID = data.readUIntLE(4,2)
-                let reply_number = data.readUIntLE(6,2)
+                
+                this.debugPacket(data)
 
-                console.log("command:       ",Object.keys(COMMANDS).find(c => COMMANDS[c] == command))
-                console.log("checksum:      ",checksum)
-                console.log("sessionId:     ",sessionID)
-                console.log("reply number:  ",reply_number)
+                if (command == COMMANDS.CMD_PREPARE_DATA) {
+                    const dataSize = data.slice(8)
+                    console.log("before: ", data.length)
+                    console.log("after slice: ", dataSize.length)
+                    console.log("data -6: ", data.slice(-6))
+                }
 
                 return data
             //}
         } catch (err) {
-            console.error('Error getting user tempaltes: ', err);
+            console.error('Error getting user templates: ', err);
             throw err;
         }
     }
 
+    
+    async getTemplates(){
+        try {
+            await this.freeData()
+            await this.disableDevice()
+            
+            const Buffer = await this.readWithBuffer(REQUEST_DATA.GET_TEMPLATES)
+
+            let templateData = Buffer.data.slice(4,) 
+            let totalSize = Buffer.data.readUIntLE(0,4)
+            let templates = []
+            while (totalSize) {
+                let buf = templateData.slice(0,6)
+                const finger = new Finger(
+                    uid = buf.readUIntLE(2,2),
+                    fid = buf.readUIntLE(4,1),
+                    valid = buf.readUIntLE(5,1),
+                    size = buf.readUIntLE(0,2),
+                    template = templateData.slice(6,size)
+                )
+                templates.push(finger)
+
+                templateData = templateData.slice(size,)
+                totalSize -= size
+            }
+            return templates
+        } catch (err) {
+            console.error('Error getting user templates: ', err);
+            throw err;
+        } finally {
+            await this.enableDevice()
+            await this.freeData()
+        }
+    }
 }
 
 

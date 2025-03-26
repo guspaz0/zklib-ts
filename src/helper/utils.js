@@ -6,7 +6,7 @@
 
 const {USHRT_MAX, COMMANDS} = require('./command')
 const {log} = require('../logs/log')
-
+const {User} = require('./models/User')
 
 const parseTimeToDate = (time) => {
     const second = time % 60;
@@ -126,27 +126,28 @@ module.exports.decodeUserData28 = (userData) => {
 }
 
 module.exports.decodeUserData72 = (userData) => {
-    const user = {
-        uid: userData.readUIntLE(0, 2),
-        role: userData.readUIntLE(2, 1),
-        password: userData
+    const user = new User(
+        uid = userData.readUIntLE(0, 2),
+        name = userData
+        .slice(11)
+        .toString('ascii')
+        .split('\0')
+        .shift(),
+        privilege = userData.readUIntLE(2, 1),
+        password = userData
             .subarray(3, 3 + 8)
             .toString('ascii')
             .split('\0')
             .shift(),
-        name: userData
-            .slice(11)
-            .toString('ascii')
-            .split('\0')
-            .shift(),
-        cardno: userData.readUIntLE(35, 4),
-        groupno: userData.readUIntLE(39,1),
-        userId: userData
+
+        cardno = userData.readUIntLE(35, 4),
+        groupno = userData.readUIntLE(39,1),
+        user_id = userData
             .slice(48, 48 + 9)
             .toString('ascii')
             .split('\0')
-            .shift(),
-    };
+            .shift()
+        );
     return user;
 }
 
