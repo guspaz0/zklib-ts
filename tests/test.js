@@ -93,8 +93,6 @@ const test = async () => {
         const attendances = await zkInstance.getAttendances();
         console.log("Total Attendances: "+attendances.data.length);
 
-        const usertemplate = await zkInstance.getUserTemplates()
-
         console.log('-------test completed--------')
 
     } catch (e) {

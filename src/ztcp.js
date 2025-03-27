@@ -4,7 +4,6 @@
  * Date: 2024-07-01
  */
 
-
 const net = require('net')
 const {MAX_CHUNK, COMMANDS, REQUEST_DATA} = require('./helper/command')
 const timeParser = require('./helper/time');
@@ -25,7 +24,8 @@ const {Finger} = require('./helper/models/Finger')
 const {User} = require('./helper/models/User')
 
 const {log} = require('./logs/log')
-const {error} = require('console')
+const {error} = require('console');
+const { ZkError } = require('./exceptions/handler');
 
 
 class ZTCP {
@@ -36,7 +36,7 @@ class ZTCP {
     * @param_comm_key communication key of device (if the case)
     * @return Zkteco TCP socket connection instance
     */
-    constructor(ip, port, timeout, comm_key) {
+    constructor(ip, port, timeout, comm_key, verbose=true) {
         this.ip = ip;
         this.port = port;
         this.timeout = timeout;
@@ -62,6 +62,8 @@ class ZTCP {
         this.face_count = 0;
         this.face_cap = 0;
         this.__data = undefined;
+        this.userPacketSize = 72
+        this.verbose = verbose
     }
     
 
@@ -470,7 +472,7 @@ class ZTCP {
 
     /**
      *  reject error when starting request data
-     *  return { data: users, err: Error } when receiving requested data
+     *  @return {Record<string, User[] | Error>} when receiving requested data
      */
     async getUsers() {
         try {
@@ -1052,6 +1054,7 @@ class ZTCP {
                 userid.length > 9 ||
                 name.length > 24 ||
                 password.length > 8 ||
+                typeof role !== 'number' ||
                 cardno.toString().length > 10
             ) {
                 throw new Error('Invalid input parameters');
@@ -1188,37 +1191,7 @@ class ZTCP {
         }
     }
 
-    async getUserTemplate(uid, temp_id = 0, user_id = '') {
-        if (temp_id < 0 || temp_id > 9) return false
-        try {
-            if (!uid && user_id) {
-                let users = await this.getUsers()
-                let user = users.find(u => u.user_id == user_id)
-                if (!user) return false
-                uid = user.uid
-            }
-            //for (let i = 0; i < 3; i++) {
-                let command_string = Buffer.from([uid,0,temp_id])
-                let response_size = 1024 + 8
-                const data = await this.executeCmd(COMMANDS.CMD_GET_USERTEMP, command_string)
-                
-                this.debugPacket(data)
-
-                if (command == COMMANDS.CMD_PREPARE_DATA) {
-                    const dataSize = data.slice(8)
-                    console.log("before: ", data.length)
-                    console.log("after slice: ", dataSize.length)
-                    console.log("data -6: ", data.slice(-6))
-                }
-
-                return data
-            //}
-        } catch (err) {
-            console.error('Error getting user templates: ', err);
-            throw err;
-        }
-    }
-
+    
     
     async getTemplates(){
         try {
@@ -1231,15 +1204,14 @@ class ZTCP {
             let totalSize = Buffer.data.readUIntLE(0,4)
             let templates = []
             while (totalSize) {
-                let buf = templateData.slice(0,6)
-                const finger = new Finger(
-                    uid = buf.readUIntLE(2,2),
-                    fid = buf.readUIntLE(4,1),
-                    valid = buf.readUIntLE(5,1),
-                    size = buf.readUIntLE(0,2),
-                    template = templateData.slice(6,size)
-                )
-                templates.push(finger)
+                const buf = templateData.slice(0,6)
+                const size = buf.readUIntLE(0,2)
+                templates.push(new Finger(
+                    buf.readUIntLE(2,2),
+                    buf.readUIntLE(4,1),
+                    buf.readUIntLE(5,1),
+                    templateData.slice(6,size)
+                ))
 
                 templateData = templateData.slice(size,)
                 totalSize -= size
@@ -1253,6 +1225,143 @@ class ZTCP {
             await this.freeData()
         }
     }
+
+    async refreshData(){
+        try {
+            const reply = await this.executeCmd(COMMANDS.CMD_REFRESHDATA,'')
+            return !!reply
+        } catch (error) {
+            console.error('Error getting user templates: ', err);
+            throw err;
+        }
+    }
+    async sendWithBuffer(buffer) {
+        try {
+            const MAX_CHUNK = 1024;
+            const size = buffer.length;
+            await this.freeData();
+            
+            const commandString = Buffer.alloc(4); // 'I' is 4 bytes
+            commandString.writeUInt32LE(size, 0);
+            
+            const cmdResponse = await this.executeCmd(COMMANDS.CMD_PREPARE_DATA, commandString);
+            if (!cmdResponse) {
+                throw new ZkError("Can't prepare data");
+            }
+            
+            const remain = size % MAX_CHUNK;
+            const packets = Math.floor((size - remain) / MAX_CHUNK);
+            let start = 0;
+            
+            for (let i = 0; i < packets; i++) {
+                const resp = await this.sendChunk(buffer.slice(start, start + MAX_CHUNK));
+                if (resp) {
+                    start += MAX_CHUNK;
+                    if (i == packets-1 && remain) {
+                        const lastPacket = await this.sendChunk(buffer.slice(start, start + remain));
+                        return lastPacket
+                    }
+                }
+            }
+        } catch(e) {
+            console.log(e)
+        }
+    }
+    
+    async sendChunk(commandString) {
+        try {
+            const command = COMMANDS.CMD_DATA;
+            const cmdResponse = await this.executeCmd(command, commandString);
+            
+            if (cmdResponse) {
+                return true;
+            } else {
+                throw new ZkError("Can't send chunk");
+            }
+        } catch(e){
+            console.log(e)
+        }
+    }
+    /**
+     * save user and template
+     * 
+     * @param {User | number | string} user - User class object | uid | user_id
+     * @param {Finger[]} fingers - list of finger class. (The maximum index 0-9)
+     */
+    async saveUserTemplate(user, fingers=[]) {
+        if (fingers.length > 9) throw Error("maximum finger length is 10")
+        try {
+            await this.disableDevice()
+            if (!(user instanceof User)) {
+                const users = this.getUsers();
+                let tusers = users.data.filter(x => x._uid === +user);
+                if (tusers.length === 1) {
+                    user = tusers[0];
+                } else {
+                    tusers = users.data.filter(x => x._user_id === String(user));
+                    if (tusers.length === 1) {
+                        user = tusers[0];
+                    } else {
+                        throw new ZkError("Can't find user");
+                    }
+                }
+            }
+            
+            if (fingers instanceof Finger) {
+                fingers = [fingers];
+            }
+
+            let fpack = Buffer.alloc(0);
+            let table = Buffer.alloc(0);
+            const fnum = 0x10;
+            let tstart = 0;
+            
+            for (const finger of fingers) {
+                const tfp = finger.repackOnly();
+                const tableEntry = Buffer.alloc(11); // b=1, H=2, b=1, I=4 => 1+2+1+4=8? Wait, bHbI is 1+2+1+4=8 bytes
+                tableEntry.writeInt8(2, 0);
+                tableEntry.writeUInt16LE(user._uid, 1);
+                tableEntry.writeInt8(fnum + finger._fid, 3);
+                tableEntry.writeUInt32LE(tstart, 4);
+                
+                table = Buffer.concat([table, tableEntry]);
+                tstart += tfp.length;
+                fpack = Buffer.concat([fpack, tfp]);
+            }
+            
+            let upack;
+            if (this.userPacketSize === 28) {
+                upack = user.repack29();
+            } else {
+                upack = user.repack73();
+            }
+            
+            const head = Buffer.alloc(12); // III = 3*4 bytes
+            head.writeUInt32LE(upack.length, 0);
+            head.writeUInt32LE(table.length, 4);
+            head.writeUInt32LE(fpack.length, 8);
+            
+            const packet = Buffer.concat([head, upack, table, fpack]);
+            const bufferResponse = await this.sendWithBuffer(packet);
+            
+            const command = 110;
+            const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
+            commandString.writeUInt32LE(12, 0);
+            commandString.writeUInt16LE(0, 4);
+            commandString.writeUInt16LE(8, 6);
+            
+            const cmdResponse = await this.executeCmd(command, commandString);
+            if (cmdResponse.readUInt16LE(0,2) != COMMANDS.CMD_ACK_OK) {
+                throw new Error("Can't save utemp");
+            }
+        } catch (error) {
+            throw new Error(error.message)
+        } finally {
+            await this.refreshData();
+            await this.enableDevice()
+        }
+    }
+
 }
 
 

@@ -139,14 +139,13 @@ module.exports.decodeUserData72 = (userData) => {
             .toString('ascii')
             .split('\0')
             .shift(),
-
-        cardno = userData.readUIntLE(35, 4),
-        groupno = userData.readUIntLE(39,1),
+        group_id = userData.readUIntLE(39,1),
         user_id = userData
             .slice(48, 48 + 9)
             .toString('ascii')
             .split('\0')
-            .shift()
+            .shift(),
+        cardno = userData.readUIntLE(35, 4),
         );
     return user;
 }

@@ -6,16 +6,18 @@
 
 const ZTCP = require('./src/ztcp')
 const ZUDP = require('./src/zudp')
+const {User} = require('./src/helper/models/User')
+const {Finger} = require('./src/helper/models/Finger')
 
 const {ZkError, ERROR_TYPES} = require('./src/exceptions/handler')
 
 class ZktecoJs {
     /** 
-    * @param {*} ip ip address of device
-    * @param {*} port port number of device
-    * @param {*} timeout connection timout
-    * @param {*} inport Required Only for UDP connection
-    * @param {*} comm_key communication key of device (if the case)
+    * @param {string} ip ip address of device
+    * @param {number} port port number of device
+    * @param {number} timeout connection timout
+    * @param {number} inport Required Only for UDP connection
+    * @param {number} comm_key communication key of device (if the case)
     * @return Zkteco socket connection instance
     */
     constructor(ip, port, timeout, inport = 10000, comm_key = 0) {
@@ -243,12 +245,12 @@ class ZktecoJs {
     }
 
     /** 
-    * @param {*} uid internal uid
-    * @param {*} userid userid for external reference
-    * @param {*} name user name
-    * @param {*} password user password
-    * @param {*} role user role permission.
-    * @param {*} carno user card number
+    * @param {number} uid internal uid
+    * @param {string} userid userid for external reference
+    * @param {string} name user name
+    * @param {string} password user password
+    * @param {number} role user role permission.
+    * @param {number} carno user card number
     * @return {*} Zkteco TCP socket connection instance
     */
     async setUser(uid, userid, name, password, role = 0, cardno = 0) {
@@ -257,7 +259,7 @@ class ZktecoJs {
         )
     }
     /** 
-    * @param {*} uid internal user id
+    * @param {number} uid internal user id
     * @return void
     */
     async deleteUser(uid) {
@@ -299,7 +301,17 @@ class ZktecoJs {
             () => this.ztcp.getTemplates()
         )
     }
-
+    /**
+     * save user and template
+     * 
+     * @param {User} user user object
+     * @param {Finger[]} fingers list of finger. (The maximum index 0-9)
+     */
+    async saveUserTemplate(user, fingers=[]){
+        return await this.functionWrapper(
+            () => this.ztcp.saveUserTemplate(user,fingers)
+        )
+    }
     /** 
     * @return attendance, user, fingerprint and face capacity, available and counts.
     */
