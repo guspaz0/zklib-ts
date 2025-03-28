@@ -5,7 +5,10 @@
  */
 
 const net = require('net')
-const {MAX_CHUNK, COMMANDS, REQUEST_DATA} = require('./helper/command')
+const { MAX_CHUNK, COMMANDS, REQUEST_DATA, USHRT_MAX, 
+    MACHINE_PREPARE_DATA_1, 
+    MACHINE_PREPARE_DATA_2 
+} = require('./helper/command')
 const timeParser = require('./helper/time');
 
 const {
@@ -26,6 +29,8 @@ const {User} = require('./helper/models/User')
 const {log} = require('./logs/log')
 const {error} = require('console');
 const { ZkError } = require('./exceptions/handler');
+const { CANCELLED } = require('dns');
+const { buffer } = require('stream/consumers');
 
 
 class ZTCP {
@@ -228,7 +233,10 @@ class ZTCP {
 
                 // Decode the TCP header
                 const header = decodeTCPHeader(replyBuffer.subarray(0, 16));
-
+                if (this.verbose) {
+                    console.log("linea 232: replyId: ",header.replyId,"      command:    ",
+                        header.commandId, Object.keys(COMMANDS).find(c => COMMANDS[c] == header.commandId))
+                }
                 // Handle based on command ID
                 if (header.commandId === COMMANDS.CMD_DATA) {
                     // Set a timeout to handle delayed responses
@@ -300,8 +308,10 @@ class ZTCP {
         } else {
             this.replyId++;
         }
-
-        const buf = createTCPHeader(command, this.sessionId, this.replyId, data);
+        if (this.verbose) {
+            console.log("linea 305: replyId: ", this.replyId, "     command: ", command, Object.keys(COMMANDS).find(u => COMMANDS[u] == command))
+        }
+            const buf = createTCPHeader(command, this.sessionId, this.replyId, data);
 
         try {
             // Write the message to the socket and wait for a response
@@ -366,7 +376,6 @@ class ZTCP {
 
             try {
                 reply = await this.requestData(buf)
-                //console.log(reply.toString('hex'));
 
             } catch (err) {
                 reject(err)
@@ -1236,23 +1245,23 @@ class ZTCP {
         }
     }
     async sendWithBuffer(buffer) {
+        const MAX_CHUNK = 1024;
+        const size = buffer.length;
+        await this.freeData();
+        
+        const commandString = Buffer.alloc(4); // 'I' is 4 bytes
+        commandString.writeUInt32LE(size, 0);
         try {
-            const MAX_CHUNK = 1024;
-            const size = buffer.length;
-            await this.freeData();
-            
-            const commandString = Buffer.alloc(4); // 'I' is 4 bytes
-            commandString.writeUInt32LE(size, 0);
-            
             const cmdResponse = await this.executeCmd(COMMANDS.CMD_PREPARE_DATA, commandString);
+            // responds with 2000 = CMD_ACK_OK
             if (!cmdResponse) {
                 throw new ZkError("Can't prepare data");
             }
-            
-            const remain = size % MAX_CHUNK;
-            const packets = Math.floor((size - remain) / MAX_CHUNK);
-            let start = 0;
-            
+        } catch(e) { console.error(e) }
+        const remain = size % MAX_CHUNK;
+        const packets = Math.floor((size - remain) / MAX_CHUNK);
+        let start = 0;
+        try {
             for (let i = 0; i < packets; i++) {
                 const resp = await this.sendChunk(buffer.slice(start, start + MAX_CHUNK));
                 if (resp) {
@@ -1264,29 +1273,24 @@ class ZTCP {
                 }
             }
         } catch(e) {
-            console.log(e)
+            console.error(e)
         }
     }
     
     async sendChunk(commandString) {
         try {
-            const command = COMMANDS.CMD_DATA;
-            const cmdResponse = await this.executeCmd(command, commandString);
-            
-            if (cmdResponse) {
-                return true;
-            } else {
-                throw new ZkError("Can't send chunk");
-            }
+            await new Promise((resolve,reject) => {
+                resolve(this.executeCmd(COMMANDS.CMD_DATA, commandString))
+            })
         } catch(e){
-            console.log(e)
+            throw new ZkError("Can't send chunk", e);
         }
     }
     /**
      * save user and template
      * 
      * @param {User | number | string} user - User class object | uid | user_id
-     * @param {Finger[]} fingers - list of finger class. (The maximum index 0-9)
+     * @param {Finger[]} fingers - Array of finger class. `0 <= index <= 9`
      */
     async saveUserTemplate(user, fingers=[]) {
         if (fingers.length > 9) throw Error("maximum finger length is 10")
@@ -1343,25 +1347,232 @@ class ZTCP {
             
             const packet = Buffer.concat([head, upack, table, fpack]);
             const bufferResponse = await this.sendWithBuffer(packet);
-            
-            const command = 110;
-            const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
-            commandString.writeUInt32LE(12, 0);
-            commandString.writeUInt16LE(0, 4);
-            commandString.writeUInt16LE(8, 6);
-            
-            const cmdResponse = await this.executeCmd(command, commandString);
-            if (cmdResponse.readUInt16LE(0,2) != COMMANDS.CMD_ACK_OK) {
-                throw new Error("Can't save utemp");
-            }
+
         } catch (error) {
-            throw new Error(error.message)
+            console.error(error)
         } finally {
-            await this.refreshData();
-            await this.enableDevice()
+            try {
+                const command = 110;
+                const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
+                commandString.writeUInt32LE(12, 0);
+                commandString.writeUInt16LE(0, 4);
+                commandString.writeUInt16LE(8, 6);
+                
+                const cmdResponse = await this.executeCmd(command, commandString);
+
+                if(this.verbose) console.log("finally bulk save user templates: \n", cmdResponse.readUInt16LE(0,2))
+            } catch (e) {
+                console.error(e)
+            } finally {
+                await this.refreshData();
+                await this.enableDevice()
+            }
         }
     }
 
+    async deleteFinger(uid, fid) {
+        try {
+            const buf = Buffer.alloc(4)
+            buf.writeUInt16LE(uid,0)
+            buf.writeUint16LE(fid,2)
+            const reply = await this.executeCmd(COMMANDS.CMD_DELETE_USERTEMP, buf)
+            if (reply.readUInt16LE(0,2) == COMMANDS.CMD_ACK_OK){
+                return {
+                    code: COMMANDS.CMD_ACK_OK,
+                    mesg: `finger ${fid} from user uid ${uid} Deleted`
+                }
+            }
+        } catch (error) {
+            throw new Error("Can't save utemp");
+        } finally {
+            await this.refreshData()
+        }
+    }
+
+    async enrollUser(uid = 0, tempId = 0, userId = '') {
+        let done = false;
+        try {
+            if (!userId) {
+                const users = await this.getUsers();
+                const filteredUsers = users.data.filter(x => x._uid === uid);
+                if (filteredUsers.length >= 1) {
+                    userId = filteredUsers[0]._user_id;
+                } else {
+                    return false;
+                }
+            }
+        
+            const userBuf = Buffer.alloc(24);
+            userBuf.write(userId.toString(), 0, 24, 'ascii');
+            let commandString = Buffer.concat([
+                userBuf,
+                Buffer.from([tempId, 1])
+            ]);
+        
+            const cancel = await this.cancelCapture();
+            if (!cancel) {
+                throw new ZkError("Can't perform cancelCapture before start enroll")
+            }
+
+            const cmdResponse = await this.executeCmd(COMMANDS.CMD_STARTENROLL, commandString);
+            
+            if (!cmdResponse) {
+                throw new ZkError(`Can't Enroll user #${uid} [${tempId}]`);
+            }
+
+            this.timeout = 60000; // 60 seconds timeout
+            let attempts = 3;
+        
+            while (attempts > 0) {
+                if (this.verbose) console.log(`A:${attempts} esperando primer regevent`);
+                
+                let dataRecv = await this.readSocket(64)
+                await this.ackOk();
+                if (this.verbose) console.log("line 1434: ",dataRecv);
+        
+                if (dataRecv.length > 16) {
+                    const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
+                    const res = padded.readUInt16LE(16);
+                    if (this.verbose) console.log(`res ${res}`);
+                    if (res === 0 || res === 6 || res === 4) {
+                        if (this.verbose) console.log("posible timeout o reg Fallido");
+                        break;
+                    }
+                }
+                if (this.verbose) console.log(`A:${attempts} esperando 2do regevent`);
+
+                dataRecv = await this.readSocket(1032)
+                await this.ackOk();
+                if (this.verbose) console.log(dataRecv);
+        
+                if (dataRecv.length > 8) {
+                    const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
+                    const res = padded.readUInt16LE(16);
+                    if (this.verbose) console.log(`res ${res}`);
+                    if (res === 6 || res === 4) {
+                        if (this.verbose) console.log("posible timeout o reg Fallido");
+                        break;
+                    } else if (res === 0x64) {
+                        if (this.verbose) console.log("ok, continue?");
+                        attempts--;
+                    }
+                }
+            }
+        
+            if (attempts === 0) {
+                const dataRecv = await this.readSocket(1032);
+                await this.ackOk();
+                if (this.verbose) console.log(dataRecv.toString('hex'));
+        
+                const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
+                let res = padded.readUInt16LE(16);
+        
+                if (this.verbose) console.log(`res ${res}`);
+                if (res === 5) {
+                    if (this.verbose) console.log("finger duplicate");
+                }
+                if (res === 6 || res === 4) {
+                    if (this.verbose) console.log("posible timeout");
+                }
+                if (res === 0) {
+                    const size = padded.readUInt16LE(10);
+                    const pos = padded.readUInt16LE(12);
+                    if (this.verbose) console.log(`enroll ok ${size} ${pos}`);
+                    done = true;
+                }
+            }
+        
+            //this.__sock.setTimeout(this.__timeout);
+            await this.regEvent(0); // TODO: test
+
+        } catch (error) {
+            console.error(error)
+        } finally {
+            await this.cancelCapture();
+            await this.verifyUser();
+            return done;
+        }
+    }
+
+    async readSocket(length) {
+        return new Promise((resolve,reject)=> {
+            let timer;
+            let replyBufer = Buffer.from([])
+
+            timer = setTimeout(() => {
+                if (this.socket) {
+                    this.socket.removeAllListeners(); // Clean up listener on timeout
+                }
+                reject(new Error('TIMEOUT_ON_RECEIVING_REQUEST_DATA')); // Reject on timeout
+            }, this.timeout);
+
+            this.socket.on('data', async (data)=> {
+                replyBufer = Buffer.from([replyBufer, data])
+                if (replyBufer.length == length) {
+                    resolve(replyBufer)
+                }
+            });
+        }).catch((err) => {
+            console.error("Promise Rejected:", err); // Log the rejection reason
+            throw err; // Re-throw the error to be handled by the caller
+        });
+    }
+    /**
+     * Register events
+     * @param {number} flags - Event flags
+     * @returns {Promise<void>}
+     * @throws {ZKErrorResponse} If registration fails
+     */
+    async regEvent(flags) {
+        const commandString = Buffer.alloc(4); // 'I' format is 4 bytes
+        commandString.writeUInt32LE(flags, 0); // Little-endian unsigned int
+        
+        const cmdResponse = await this.executeCmd(COMMANDS.CMD_REG_EVENT, commandString);
+        if (this.verbose) console.log("regEvent: ", cmdResponse.readUInt16LE(0,2))
+        if (!cmdResponse) {
+            throw new ZkError(`Can't reg events ${flags}`);
+        }
+    }
+
+    async ackOk(){
+        try {
+            const buf = createTCPHeader(COMMANDS.CMD_ACK_OK, this.sessionId, USHRT_MAX-1, Buffer.from([]))
+            this.socket.write(buf)
+        } catch (e) {
+            throw new ZkError("can't send tcp header")
+        }
+    }
+
+    async cancelCapture(){
+        try {
+            const reply = await this.executeCmd(COMMANDS.CMD_CANCELCAPTURE,'')
+            return !!reply
+        } catch (e){
+            throw ZkError(e.message)
+        }
+    }
+
+    async verifyUser(uid){
+        try {
+            let command_string = ''
+            if (uid) {
+                command_string = Buffer.alloc(4)
+                command_string.writeUInt32LE(uid,0)
+            }
+            const reply = await this.executeCmd(COMMANDS.CMD_STARTVERIFY, command_string)
+            console.log(reply.readUInt16LE(0,2))
+            return !!reply
+        } catch (error) {
+            console.error(error)
+        }
+    }
+    async restartDevice(){
+        try {
+            await this.executeCmd(COMMANDS.CMD_RESTART,'')
+        } catch (e) {
+            throw ZkError("Error tryng to restart device")
+        }
+    }
 }
 
 

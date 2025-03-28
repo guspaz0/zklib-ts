@@ -305,13 +305,52 @@ class ZktecoJs {
      * save user and template
      * 
      * @param {User} user user object
-     * @param {Finger[]} fingers list of finger. (The maximum index 0-9)
+     * @param {Finger[]} fingers Array of fingers. `0 <= index <= 9`
      */
     async saveUserTemplate(user, fingers=[]){
         return await this.functionWrapper(
             () => this.ztcp.saveUserTemplate(user,fingers)
         )
     }
+
+    /**
+     * Deletes a single fingerprint for the given `uid`
+     * @param {number} uid user identifier
+     * @param {number} fid finger identifier `0 <= fid <= 9`
+     */
+    async deleteFinger(uid, fid){
+        return await this.functionWrapper(
+            ()=> this.ztcp.deleteFinger(uid,fid)
+        )
+    }
+
+        /**
+     * Start enroll user
+     * @param {number} uid - user ID number
+     * @param {number} fid - finger template ID
+     * @param {string} user_id - user ID string
+     * @returns {Promise<boolean>}
+     */
+    async enrollUser(uid, temp_id, user_id){
+        return await this.functionWrapper(
+            ()=> this.ztcp.enrollUser(uid, temp_id, user_id)
+        )
+    }
+
+    async verifyUser(uid) {
+        return await this.functionWrapper(
+            ()=> this.ztcp.verifyUser(uid)
+        )
+    }
+    /**
+     * Reboot device
+     */
+    async restartDevice(){
+        return await this.functionWrapper(
+            ()=> this.ztcp.restartDevice()
+        )
+    }
+
     /** 
     * @return attendance, user, fingerprint and face capacity, available and counts.
     */

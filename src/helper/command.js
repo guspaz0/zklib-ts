@@ -104,6 +104,9 @@ module.exports.USHRT_MAX = 65535
 
 module.exports.MAX_CHUNK = 65472
 
+module.exports.MACHINE_PREPARE_DATA_1 = 20560
+module.exports.MACHINE_PREPARE_DATA_2 = 32130
+
 module.exports.REQUEST_DATA = {
     DISABLE_DEVICE: Buffer.from([0, 0, 0, 0]),
     GET_REAL_TIME_EVENT: Buffer.from([0x01, 0x00, 0x00, 0x00]),
