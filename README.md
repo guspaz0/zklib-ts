@@ -80,12 +80,6 @@ manageZktecoDevice();
 - <span style="color: green; font-weight: bold;">🆕 `getProductTime()` - get product created time.</span>
 - <span style="color: green; font-weight: bold;">🆕 `getMacAddress()` - get device MAC address.</span>
 
-## Contributing
-
-Please see [CONTRIBUTING](https://github.com/coding-libs/zkteco-js/graphs/contributors) for details.
-## Security
-
-If you've found a bug regarding security please mail [codinglibs4u@gmail.com](mailto:codinglibs4u@gmail.com) instead of using the issue tracker.
 
 ## Alternatives
 

@@ -2,16 +2,23 @@
   "name": "zkteco-js",
   "version": "0.0.0-development",
   "description": "The zkteco library allows Node.js developers to easily interface with ZK BioMetric Fingerprint Attendance Devices, extract and manage data, and integrate biometric features into attendance systems efficiently.",
-  "main": "index.js",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "typings": "dist/index",
+  "types": "dist/types/index.d.ts",
+  "type": "commonjs",
+  "files": [
+    "lib/"
+  ],
   "scripts": {
-    "test": "echo \"No tests specified\"",
-    "semantic-release": "semantic-release --branches master",
-    "commit": "git-cz"
+    "test": "tsc && node dist/tests/test.js",
+    "build": "rollup -c",
+    "prepare": "npm run build"
   },
-  "repositoryUrl": "https://github.com/coding-libs/zkteco-js.git",
+  "repositoryUrl": "https://github.com/guspaz0/zkteco-js.git",
   "repository": {
     "type": "git",
-    "url": "https://github.com/coding-libs/zkteco-js.git"
+    "url": "https://github.com/guspaz0/zkteco-js.git"
   },
   "keywords": [
     "ip",
@@ -29,21 +36,21 @@
     "biometric attendance",
     "biometric attendance device"
   ],
-  "author": "Coding Libs",
+  "author": "Gustavo Paz",
   "license": "MIT",
-  "contributors": [
-    "Coding Libs <codinglibs4u@gmail.com>"
-  ],
-  "bugs": {
-    "url": "https://github.com/coding-libs/zkteco-js/issues"
-  },
-  "homepage": "https://github.com/coding-libs/zkteco-js#readme",
   "directories": {
     "test": "tests"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.2",
     "cz-conventional-changelog": "^3.3.0",
-    "semantic-release": "^24.0.0"
+    "rollup": "^4.37.0",
+    "semantic-release": "^24.0.0",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.2"
   },
   "config": {
     "commitizen": {
@@ -52,5 +59,8 @@
   },
   "precommit": [
     "build"
-  ]
+  ],
+  "dependencies": {
+    "@types/node": "^22.13.14"
+  }
 }
