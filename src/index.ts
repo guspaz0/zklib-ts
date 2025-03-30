@@ -4,23 +4,14 @@ import { User } from './helper/models/User';
 import { Finger } from './helper/models/Finger';
 import { ZkError, ERROR_TYPES } from './exceptions/handler';
 import {Attendance} from "./helper/models/Attendance";
-import {RecordData16, UserData28} from "./helper/utils";
+import {RecordData16, UserData28, DeviceInfo} from "./helper/utils";
 
-interface DeviceInfo {
-    userCounts: number;
-    logCounts: number;
-    logCapacity: number;
-}
-
-interface Template {
-    uid: number;
-    fid: number;
-    valid: number;
-    template: Buffer;
-}
 
 class ZktecoJs {
-    private connectionType: 'tcp' | 'udp' | null = null;
+    set connectionType(value: "tcp" | "udp" | null) {
+        this._connectionType = value;
+    }
+    private _connectionType: 'tcp' | 'udp' | null = null;
     public ztcp: ZTCP;
     public zudp: ZUDP;
     private interval: NodeJS.Timeout | null = null;
@@ -28,6 +19,10 @@ class ZktecoJs {
     private isBusy: boolean = false;
     private ip: string;
     private comm_key: number;
+
+    get connectionType(): "tcp" | "udp" | null {
+        return this._connectionType;
+    }
 
     /**
      * Creates a new Zkteco device connection instance
@@ -38,7 +33,7 @@ class ZktecoJs {
      * @param comm_key Communication key of device (default: 0)
      * @param verbose Console log some data
      */
-    constructor(ip: string, port: number, timeout: number, inport: number = 10000, comm_key: number = 0, verbose: boolean = false) {
+    constructor(ip: string, port: number = 4370, timeout: number= 5000, inport: number = 10000, comm_key: number = 0, verbose: boolean = false) {
         this.ip = ip;
         this.comm_key = comm_key;
         this.ztcp = new ZTCP(ip, port, timeout, comm_key, verbose);
@@ -51,7 +46,7 @@ class ZktecoJs {
         command: string
     ): Promise<T> {
         try {
-            switch (this.connectionType) {
+            switch (this._connectionType) {
                 case 'tcp':
                     if (this.ztcp && this.ztcp.socket) {
                         return await tcpCallback();
@@ -73,7 +68,6 @@ class ZktecoJs {
                             this.ip
                         );
                     }
-
                 default:
                     throw new ZkError(
                         new Error(`Unsupported connection type or socket isn't connected!`),
@@ -84,7 +78,7 @@ class ZktecoJs {
         } catch (err) {
             throw new ZkError(
                 err as Error,
-                `[${this.connectionType?.toUpperCase()}] ${command}`,
+                `[${this._connectionType?.toUpperCase()}] ${command}`,
                 this.ip
             );
         }
@@ -99,7 +93,7 @@ class ZktecoJs {
                 try {
                     await this.ztcp.connect();
                     console.log('TCP reconnection successful');
-                    this.connectionType = 'tcp';
+                    this._connectionType = 'tcp';
                     return true;
                 } catch (err) {
                     throw new ZkError(err as Error, 'TCP CONNECT', this.ip);
@@ -109,7 +103,7 @@ class ZktecoJs {
                     await this.ztcp.createSocket(cbErr, cbClose);
                     await this.ztcp.connect();
                     console.log('TCP connection successful');
-                    this.connectionType = 'tcp';
+                    this._connectionType = 'tcp';
                     return true;
                 } catch (err) {
                     throw new ZkError(err as Error, 'TCP CONNECT', this.ip);
@@ -132,11 +126,11 @@ class ZktecoJs {
                 }
                 await this.zudp.connect();
                 console.log('UDP connection successful');
-                this.connectionType = 'udp';
+                this._connectionType = 'udp';
                 return true;
             } catch (err) {
                 if ((err as Error).message !== 'EADDRINUSE') {
-                    this.connectionType = null;
+                    this._connectionType = null;
                     try {
                         await this.zudp.disconnect();
                     } catch (disconnectErr) {
@@ -145,7 +139,7 @@ class ZktecoJs {
                     throw new ZkError(err as Error, 'UDP CONNECT', this.ip);
                 }
 
-                this.connectionType = 'udp';
+                this._connectionType = 'udp';
                 return true;
             }
         }
@@ -402,13 +396,6 @@ class ZktecoJs {
         );
     }
 
-    async connect(): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp.connect(),
-            () => this.zudp.connect(),
-            'CONNECT'
-        );
-    }
 
     async freeData(): Promise<boolean> {
         return this.functionWrapper(
@@ -466,25 +453,6 @@ class ZktecoJs {
         );
     }
 
-    setIntervalSchedule(cb: () => void, timer: number): void {
-        this.interval = setInterval(cb, timer);
-    }
-
-    setTimerSchedule(cb: () => void, timer: number): void {
-        this.timer = setTimeout(cb, timer);
-    }
-
-    // Cleanup method to clear intervals and timeouts
-    cleanup(): void {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
-        }
-        if (this.timer) {
-            clearTimeout(this.timer);
-            this.timer = null;
-        }
-    }
 }
 
 export default ZktecoJs;

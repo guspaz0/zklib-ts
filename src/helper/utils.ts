@@ -12,9 +12,17 @@ interface ParsedTime {
     second: number;
 }
 
+export interface DeviceInfo {
+    userCounts: number;
+    logCounts: number;
+    logCapacity: number;
+}
+
 export type UserData28 = Omit<User, 'password' | 'group_id' | 'card' | 'repack29' | 'repack73'>
 
-export interface RecordData16 extends Pick<Attendance, 'user_id' | 'record_time'> {
+export interface RecordData16 {
+    record_time: Date;
+    user_id: string;
     ip?: string
 }
 

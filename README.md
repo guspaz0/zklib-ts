@@ -1,5 +1,11 @@
 <p align="center"><a href="https://www.zkteco.com/" target="_blank"><img src="https://raw.githubusercontent.com/coding-libs/zkteco-js/master/logo.jpg" width="400" alt="Zkteco Logo"></a></p>
 
+<p align="center">
+    <img src="https://img.shields.io/badge/ZkLib-latest-green?style=flat-square"/>
+    <img src="https://img.shields.io/badge/TypeScript-latest-blue?style=flat-square"/>
+    <img src="https://img.shields.io/badge/Jest-latest-red?style=flat-square"/>
+    <img src="https://img.shields.io/badge/npm-red?style=flat-square"/>
+</p>
 
 ## <span style="color:red;">Warning</span>
 
@@ -9,6 +15,29 @@ This repository is currently in development and may contain bugs or incomplete f
 
 # About zkteco-js
 The zkteco-js library provides a robust solution for Node.js developers to interface with ZK BioMetric Fingerprint Attendance Devices. Its user-friendly API allows seamless extraction of data, such as registered users, logs, and device versions. Developers can also add users, retrieve real-time logs, and clear attendance records. Using a socket connection, the library ensures fast and reliable data exchange. Whether creating an attendance system or a time-and-attendance management application, zkteco-js is the essential tool for integrating biometric devices efficiently.
+
+### Testing
+
+The repo uses Jest. There is a mock file for test without having a phisical device connected.
+
+for testing your phisical device first create .env file in root directory with the values down below:
+```
+DEVICE_IP="10.10.10.1"
+DEVICE_PORT="4370" // optional, default 4370
+DEVICE_PASSWORD="1234" // optional. default 0
+```
+and then run tests:
+```
+// run all tests
+npm t
+```
+
+for testing especific file after "npm t" type some name that matches a test file ...
+for example the next command will execute "Generic.test.ts"
+```
+npm t Generic
+```
+
 
 ### Installation
 

@@ -1,11 +1,11 @@
 import Zkteco from "../src";
 import { ZkError } from "../src/exceptions/handler";
 
-const DEVICE_IP = process.env.DEVICE_IP || "192.168.137.201";
-const DEVICE_PORT = +process.env.DEVICE_PORT || 4370;
+const DEVICE_IP = process.env.DEVICE_IP;
+const DEVICE_PORT = +process.env.DEVICE_PORT;
 const TIMEOUT = 10000;
 const INPORT = 4000;
-const COMM_KEY = +process.env.DEVICE_PASSWORD || 5814;
+const COMM_KEY = +process.env.DEVICE_PASSWORD;
 
 describe('Zkteco Enrollment Tests', () => {
     const TEST_UID = 200;
