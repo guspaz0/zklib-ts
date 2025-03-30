@@ -337,7 +337,7 @@ export class ZUDP {
         });
     }
 
-    async getUsers(): Promise<Record<string, UserData28[] | Error>> {
+    async getUsers(): Promise<{data: UserData28[]}> {
         try {
             if (this.socket) {
                 await this.freeData();
@@ -359,9 +359,9 @@ export class ZUDP {
                 userData = userData.subarray(USER_PACKET_SIZE);
             }
 
-            return { data: users, err: data.err };
+            return { data: users };
         } catch (err) {
-            return { data: [], err: err as Error };
+            throw new Error(err.message);
         }
     }
 

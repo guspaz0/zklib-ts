@@ -177,7 +177,7 @@ export const decodeRecordData40 = (recordData: Buffer): Attendance => {
             .toString('ascii')
             .split('\0')
             .shift() || '',
-        recordData.readUInt32LE(27),
+        parseTimeToDate(recordData.readUInt32LE(27)),
         recordData.readUIntLE(26, 1),
         recordData.readUIntLE(31, 1)
     );

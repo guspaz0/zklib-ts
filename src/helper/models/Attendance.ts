@@ -1,4 +1,3 @@
-import {parseTimeToDate} from "../utils";
 /**
  * Represents an Attendance Records
  */
@@ -11,10 +10,10 @@ export class Attendance {
     private _state?: number;
     private _ip?: string;
 
-    constructor(sn: number, user_id: string, record_time: number, type?: number, state?: number) {
+    constructor(sn: number, user_id: string, record_time: Date, type?: number, state?: number) {
         this._sn = sn;
         this._user_id = user_id;
-        this._record_time = parseTimeToDate(record_time);
+        this._record_time = record_time;
         this._type = type;
         this._state = state;
 

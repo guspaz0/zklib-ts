@@ -151,7 +151,7 @@ class ZktecoJs {
         }
     }
 
-    async getUsers(): Promise<Record<string, User[] | UserData28[] | Error>> {
+    async getUsers(): Promise<{ data: User[] | UserData28[]}> {
         return this.functionWrapper(
             () => this.ztcp.getUsers(),
             () => this.zudp.getUsers(),
@@ -343,14 +343,16 @@ class ZktecoJs {
     }
 
     async saveUserTemplate(user: User, fingers: Finger[] = []): Promise<void> {
-        return this.functionWrapper(
-            () => this.ztcp.saveUserTemplate(user, fingers),
+        return await this.functionWrapper(
+            async () => await this.ztcp.saveUserTemplate(user, fingers),
             async () => { throw new Error('UDP save user template not supported'); },
             'SAVE_USER_TEMPLATE'
         );
     }
 
     async deleteFinger(uid: number, fid: number): Promise<boolean> {
+        if (fid > 9 || 0 > fid) throw new Error("fid params out of index")
+        if (uid > 3000 || uid < 1) throw new Error("fid params out of index")
         return this.functionWrapper(
             () => this.ztcp.deleteFinger(uid, fid),
             async () => { throw new Error('UDP delete finger not supported'); },
@@ -359,6 +361,8 @@ class ZktecoJs {
     }
 
     async enrollUser(uid: number, temp_id: number, user_id: string): Promise<boolean> {
+        if (temp_id < 0 || temp_id > 9) throw new Error("temp_id out of range 0-9")
+        if (uid < 1 || uid > 3000) throw new Error("uid out of range 1-3000")
         return this.functionWrapper(
             () => this.ztcp.enrollUser(uid, temp_id, user_id),
             async () => { throw new Error('UDP enroll user not supported'); },

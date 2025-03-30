@@ -2,25 +2,23 @@
     "version": "1.6.2",
     "compileOnSave": true,
     "compilerOptions": {
-        "target": "ES2019",
-        "module": "NodeNext",
+        "target": "ES2024",
+        "module": "preserve",
         "declaration": true,
         "declarationDir": "dist/types",
         "skipLibCheck": true,
         "resolveJsonModule": true,
-        "moduleResolution": "nodenext",
+        "moduleResolution": "bundler",
         "esModuleInterop": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
-        "outDir": "dist"
+        "isolatedModules": true,
+        "outDir": "./dist",
+        "rootDir": "./src"
     },
-    "files": [
-        "./src/index.ts"
-    ],
     "include": [
-        "src/**/*.ts",
-        "tests/**/*.ts"
+        "src"
     ],
     "exclude": [
         "node_modules", "dist"

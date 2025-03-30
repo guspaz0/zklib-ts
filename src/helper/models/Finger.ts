@@ -2,11 +2,11 @@
  * Represents a fingerprint template with associated metadata
  */
 export class Finger {
-    private _uid: number;
-    private _fid: number;
-    private _valid: number;
-    private _template: Buffer;
-    private _size: number;
+    uid: number;
+    fid: number;
+    valid: number;
+    template: Buffer;
+    size: number;
     public readonly mark: string;
 
     /**
@@ -17,57 +17,16 @@ export class Finger {
      * @param template Fingerprint template data buffer
      */
     constructor(uid: number, fid: number, valid: number, template: Buffer) {
-        this._uid = Number(uid);
-        this._fid = Number(fid);
-        this._valid = Number(valid);
-        this._template = template;
-        this._size = template.length;
+        this.uid = Number(uid);
+        this.fid = Number(fid);
+        this.valid = Number(valid);
+        this.template = template;
+        this.size = template.length;
 
         // Create mark showing first and last 8 bytes as hex
         const start = template.slice(0, 8).toString('hex');
         const end = template.slice(-8).toString('hex');
         this.mark = `${start}...${end}`;
-    }
-
-    get uid(): number {
-        return this._uid;
-    }
-
-    set uid(value: number) {
-        this._uid = value;
-    }
-
-    get fid(): number {
-        return this._fid;
-    }
-
-    set fid(value: number) {
-        this._fid = value;
-    }
-
-    get valid(): number {
-        return this._valid;
-    }
-
-    set valid(value: number) {
-        this._valid = value;
-    }
-
-    get size(): number {
-        return this._size;
-    }
-
-    set size(value: number) {
-        this._size = value;
-    }
-
-    get template(): Buffer {
-        return this._template;
-    }
-
-    set template(value: Buffer) {
-        this._template = value;
-        this._size = value.length;
     }
 
     /**
@@ -76,15 +35,15 @@ export class Finger {
      */
     repack(): Buffer {
         // pack("HHbb%is" % (self.size), self.size+6, self.uid, self.fid, self.valid, self.template)
-        const buf = Buffer.alloc(6 + this._size); // HHbb = 6 bytes + template size
+        const buf = Buffer.alloc(6 + this.size); // HHbb = 6 bytes + template size
         let offset = 0;
 
-        buf.writeUInt16LE(this._size + 6, offset); offset += 2;
-        buf.writeUInt16LE(this._uid, offset); offset += 2;
-        buf.writeUInt8(this._fid, offset); offset += 1;
-        buf.writeUInt8(this._valid, offset); offset += 1;
+        buf.writeUInt16LE(this.size + 6, offset); offset += 2;
+        buf.writeUInt16LE(this.uid, offset); offset += 2;
+        buf.writeUInt8(this.fid, offset); offset += 1;
+        buf.writeUInt8(this.valid, offset); offset += 1;
 
-        this._template.copy(buf, offset);
+        this.template.copy(buf, offset);
 
         return buf;
     }
@@ -95,9 +54,9 @@ export class Finger {
      */
     repackOnly(): Buffer {
         // pack("H%is" % (self.size), self.size, self.template)
-        const buf = Buffer.alloc(2 + this._size); // H = 2 bytes + template size
-        buf.writeUInt16LE(this._size, 0);
-        this._template.copy(buf, 2);
+        const buf = Buffer.alloc(2 + this.size); // H = 2 bytes + template size
+        buf.writeUInt16LE(this.size, 0);
+        this.template.copy(buf, 2);
         return buf;
     }
 
@@ -108,9 +67,9 @@ export class Finger {
      */
     equals(other: Finger): boolean {
         if (!(other instanceof Finger)) return false;
-        return this._uid === other._uid &&
-            this._fid === other._fid &&
-            this._valid === other._valid &&
-            this._template.equals(other._template);
+        return this.uid === other.uid &&
+            this.fid === other.fid &&
+            this.valid === other.valid &&
+            this.template.equals(other.template);
     }
 }

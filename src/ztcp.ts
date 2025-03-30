@@ -476,7 +476,7 @@ export class ZTCP {
      *  reject error when starting request data
      *  @return {Record<string, User[] | Error>} when receiving requested data
      */
-    async getUsers(): Promise<Record<string, User[] | Error>> {
+    async getUsers(): Promise<{data: User[]}> {
         try {
             // Free any existing buffer data to prepare for a new request
             if (this.socket) {
@@ -1284,12 +1284,14 @@ export class ZTCP {
      * @param {Finger[]} fingers - Array of finger class. `0 <= index <= 9`
      */
     async saveUserTemplate(user: User, fingers: Finger[] =[]) {
-        if (fingers.length > 9) throw Error("maximum finger length is 10")
+        if (fingers.length > 9 || fingers.length == 0) throw new Error("maximum finger length is 10 and can't be empty")
         try {
             await this.disableDevice()
+            const users = await this.getUsers() as {data: User[]}
+            //check users exists
+            if (!users.data.some(u => u.uid == user.uid || +u.user_id == +user.user_id)) throw new Error("error validating user input")
             if (!(user instanceof User)) {
-                const users = await this.getUsers() as Record<string, User[]>
-                let tusers = users.data.filter(x => x.uid === +user);
+                let tusers = users.data.filter(x => x.uid === +user.uid);
                 if (tusers.length === 1) {
                     user = tusers[0];
                 } else {
@@ -1338,26 +1340,21 @@ export class ZTCP {
             
             const packet = Buffer.concat([head, upack, table, fpack]);
             const bufferResponse = await this.sendWithBuffer(packet);
+            const command = 110;
+            const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
+            commandString.writeUInt32LE(12, 0);
+            commandString.writeUInt16LE(0, 4);
+            commandString.writeUInt16LE(8, 6);
+            
+            const cmdResponse = await this.executeCmd(command, commandString);
+
+            if(this.verbose) console.log("finally bulk save user templates: \n", cmdResponse.readUInt16LE(0))
 
         } catch (error) {
-            console.error(error)
+            throw error
         } finally {
-            try {
-                const command = 110;
-                const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
-                commandString.writeUInt32LE(12, 0);
-                commandString.writeUInt16LE(0, 4);
-                commandString.writeUInt16LE(8, 6);
-                
-                const cmdResponse = await this.executeCmd(command, commandString);
-
-                if(this.verbose) console.log("finally bulk save user templates: \n", cmdResponse.readUInt16LE(0))
-            } catch (e) {
-                console.error(e)
-            } finally {
-                await this.refreshData();
-                await this.enableDevice()
-            }
+            await this.refreshData();
+            await this.enableDevice()
         }
     }
 
@@ -1378,16 +1375,15 @@ export class ZTCP {
     async enrollUser(uid: number , tempId: number, userId: string = '') {
         let done = false;
         try {
-            if (!userId) {
-                const users = await this.getUsers() as Record<string, User[]>;
-                const filteredUsers = users.data.filter(x => x.uid === uid);
-                if (filteredUsers.length >= 1) {
-                    userId = filteredUsers[0].user_id;
-                } else {
-                    return false;
-                }
+            //validate user exists
+            const users = await this.getUsers() as {data: User[]};
+            const filteredUsers = users.data.filter(x => x.uid === uid);
+            if (filteredUsers.length >= 1) {
+                userId = filteredUsers[0].user_id;
+            } else {
+                throw new Error("user not found");
             }
-        
+
             const userBuf = Buffer.alloc(24);
             userBuf.write(userId.toString(), 0, 24, 'ascii');
             let commandString = Buffer.concat([
@@ -1405,9 +1401,8 @@ export class ZTCP {
             while (attempts > 0) {
                 if (this.verbose) console.log(`A:${attempts} esperando primer regevent`);
                 
-                let dataRecv = await this.readSocket(64)
+                let dataRecv = await this.readSocket(17)
                 await this.ackOk();
-                if (this.verbose) console.log("line 1434: ",dataRecv);
         
                 if (dataRecv.length > 16) {
                     const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
@@ -1420,7 +1415,7 @@ export class ZTCP {
                 }
                 if (this.verbose) console.log(`A:${attempts} esperando 2do regevent`);
 
-                dataRecv = await this.readSocket(1032)
+                dataRecv = await this.readSocket(17)
                 await this.ackOk();
                 if (this.verbose) console.log(dataRecv);
         
@@ -1439,7 +1434,7 @@ export class ZTCP {
             }
         
             if (attempts === 0) {
-                const dataRecv = await this.readSocket(1032);
+                const dataRecv = await this.readSocket(17);
                 await this.ackOk();
                 if (this.verbose) console.log(dataRecv.toString('hex'));
         
@@ -1463,32 +1458,45 @@ export class ZTCP {
         
             //this.__sock.setTimeout(this.__timeout);
             await this.regEvent(0); // TODO: test
-
+            return done;
         } catch (error) {
-            console.error(error)
+            throw error
         } finally {
             await this.cancelCapture();
             await this.verifyUser(undefined);
-            return done;
         }
     }
 
-    async readSocket(length: number): Promise<any> {
+    async readSocket(length: number, cb=null): Promise<any> {
         let replyBufer = Buffer.from([])
+        let totalPackets = 0;
         return new Promise((resolve,reject)=> {
             let timer = setTimeout(() => {
-                if (this.socket) {
-                    this.socket.removeAllListeners(); // Clean up listener on timeout
-                }
-                reject(new Error('TIMEOUT_ON_RECEIVING_REQUEST_DATA')); // Reject on timeout
-            }, this.timeout);
+                internalCallback(replyBufer, new Error('TIMEOUT WHEN RECEIVING PACKET'))
+            }, this.timeout)
 
-            this.socket.on('data', (data)=> {
+            const internalCallback = (replyData, err = null) => {
+                this.socket && this.socket.removeListener('data', onDataEnroll)
+                timer && clearTimeout(timer)
+                resolve({data: replyData, err: err})
+            }
+
+            function onDataEnroll(data) {
+                clearTimeout(timer)
+                timer = setTimeout(() => {
+                    internalCallback(replyBufer,
+                        new Error(`TIME OUT !! ${totalPackets} PACKETS REMAIN !`))
+                }, this.timeout)
                 replyBufer = Buffer.concat([replyBufer, data], replyBufer.length+data.length)
-                if (replyBufer.length == length) {
-                    resolve(replyBufer)
+                if (data.length == length) {
+                    internalCallback(data)
                 }
-            });
+            }
+            this.socket.once('close', () => {
+                internalCallback(replyBufer, new Error('Socket is disconnected unexpectedly'))
+            })
+
+            this.socket.on('data', onDataEnroll);
         }).catch((err) => {
             console.error("Promise Rejected:", err); // Log the rejection reason
             throw err; // Re-throw the error to be handled by the caller
