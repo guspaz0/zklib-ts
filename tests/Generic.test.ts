@@ -1,4 +1,4 @@
-import ZktecoJs from "../src";
+import Zklib from "../src";
 
 const DEVICE_IP = process.env.DEVICE_IP;
 const DEVICE_PORT = +process.env.DEVICE_PORT;
@@ -7,12 +7,12 @@ const INPORT = 4000;
 const COMM_KEY = +process.env.DEVICE_PASSWORD;
 
 describe('Zkteco Device Integration Tests', () => {
-    let zkInstance: ZktecoJs;
+    let zkInstance: Zklib;
     const testUsername = `Test_${Date.now()}`;
     const testUid = 200;
 
     beforeAll(async () => {
-        zkInstance = new ZktecoJs(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
+        zkInstance = new Zklib(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
         await zkInstance.createSocket();
     });
 

@@ -1,7 +1,7 @@
 {
-  "name": "zkteco-js",
+  "name": "zklib-ts",
   "version": "1.0.0-development",
-  "description": "The zkteco library allows Node.js developers to easily interface with ZK BioMetric Fingerprint Attendance Devices, extract and manage data, and integrate biometric features into attendance systems efficiently.",
+  "description": "Unofficial zkteco library allows Node.js developers to easily interface with ZK BioMetric Fingerprint Attendance Devices",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "typings": "dist/index",
@@ -16,24 +16,21 @@
     "watch": "rollup -c --watch",
     "prepare": "npm run build"
   },
-  "repositoryUrl": "https://github.com/guspaz0/zkteco-js.git",
+  "repositoryUrl": "https://github.com/guspaz0/zklib-ts.git",
   "repository": {
     "type": "git",
-    "url": "https://github.com/guspaz0/zkteco-js.git"
+    "url": "https://github.com/guspaz0/zklib-ts.git"
   },
   "keywords": [
     "ip",
     "libs",
-    "coding",
     "device",
     "zkteco",
     "address",
     "realtime",
-    "realtime",
     "real-time",
     "biometric",
-    "atendance",
-    "zkteco-js",
+    "attendance",
     "biometric attendance",
     "biometric attendance device"
   ],
@@ -47,6 +44,7 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.14",
     "cz-conventional-changelog": "^3.3.0",
     "dotenv": "^16.4.7",
     "jest": "^29.7.0",
@@ -65,8 +63,5 @@
   },
   "precommit": [
     "build"
-  ],
-  "dependencies": {
-    "@types/node": "^22.13.14"
-  }
+  ]
 }

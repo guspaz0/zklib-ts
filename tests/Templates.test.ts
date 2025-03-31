@@ -1,4 +1,4 @@
-import Zkteco from "../src";
+import Zklib from "../src";
 import { User } from "../src/helper/models/User";
 import { Finger } from "../src/helper/models/Finger";
 import { UserData28 } from "../src/helper/utils";
@@ -18,12 +18,12 @@ describe('Zkteco Template Management Tests', () => {
     const TEST_NAME = 'PEPE ARGENTO';
     const TEST_PASSWORD = '123456';
     
-    let zkInstance: Zkteco;
+    let zkInstance: Zklib;
     let usersData: { data: User[] | UserData28[] };
     let someoneTemplates: Finger[];
 
     beforeAll(async () => {
-        zkInstance = new Zkteco(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
+        zkInstance = new Zklib(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
         await zkInstance.createSocket();
 
         // Clean up test user if exists
@@ -60,7 +60,7 @@ describe('Zkteco Template Management Tests', () => {
     });
 
     test('should save fingerprint templates to user', async () => {
-        
+
         const pepeUser = usersData.data.find(u => u.uid == TEST_UID) as User;
 
         // Act
@@ -71,14 +71,14 @@ describe('Zkteco Template Management Tests', () => {
             expect(error).toBeInstanceOf(ZkError || Error)
         }
 
-        
+
         // Assert
-        
-        
+
+
         // Verify the templates were actually saved
         const updatedTemplates = await zkInstance.getTemplates();
         const savedTemplates = updatedTemplates.filter((t: Finger) => t.uid === TEST_UID);
-        
+
         expect(savedTemplates.length).toBeLessThanOrEqual(someoneTemplates.length);
     });
 

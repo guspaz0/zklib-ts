@@ -1,4 +1,4 @@
-import ZktecoJs from '../../src';
+import Zklib from '../../src';
 import {Socket} from "net";
 
 jest.mock("../../src/ztcp", () => ({
@@ -23,10 +23,10 @@ jest.mock("../../src/zudp", () => ({
     }))
 }));
 
-describe("ZktecoJs", () => {
-    let device: ZktecoJs;
+describe("Zklib", () => {
+    let device: Zklib;
     beforeAll(async () => {
-        device = new ZktecoJs("192.168.1.1", 4370, 5000);
+        device = new Zklib("192.168.1.1", 4370, 5000);
         const result = await device.createSocket();
         expect(result).toBe(true);
     });

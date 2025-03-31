@@ -7,7 +7,7 @@ import {Attendance} from "./helper/models/Attendance";
 import {RecordData16, UserData28, DeviceInfo} from "./helper/utils";
 
 
-class ZktecoJs {
+export default class Zklib {
     set connectionType(value: "tcp" | "udp" | null) {
         this._connectionType = value;
     }
@@ -454,5 +454,3 @@ class ZktecoJs {
     }
 
 }
-
-export default ZktecoJs;

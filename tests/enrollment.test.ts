@@ -1,4 +1,4 @@
-import Zkteco from "../src";
+import Zklib from "../src";
 import { ZkError } from "../src/exceptions/handler";
 
 const DEVICE_IP = process.env.DEVICE_IP;
@@ -12,10 +12,10 @@ describe('Zkteco Enrollment Tests', () => {
     const TEST_FID = 9;
     const TEST_USERID = '200';
 
-    let zkInstance: Zkteco;
+    let zkInstance: Zklib;
 
     beforeAll(async () => {
-        zkInstance = new Zkteco(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
+        zkInstance = new Zklib(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
         await zkInstance.createSocket();
         // Clean up test user if exists
         try {
@@ -53,7 +53,7 @@ describe('Zkteco Enrollment Tests', () => {
         } finally {
             // Verify the fingerprint was enrolled
             const templates = await zkInstance.getTemplates();
-            const userTemplates = templates.filter((t: any) => 
+            const userTemplates = templates.filter((t: any) =>
                 t.uid === TEST_UID && t.fid === TEST_FID
             );
             expect(userTemplates.length).toBe(1);

@@ -1,34 +1,78 @@
-<p align="center"><a href="https://www.zkteco.com/" target="_blank"><img src="https://raw.githubusercontent.com/coding-libs/zkteco-js/master/logo.jpg" width="400" alt="Zkteco Logo"></a></p>
-
+<h1 align="center">zklib ts</h1>
+<p align="center">An unofficial library that provides a robust solution for Node.js developers to interface with ZKTeco Devices.</p>
 <p align="center">
-    <img src="https://img.shields.io/badge/ZkLib-latest-green?style=flat-square"/>
+    <img src="https://img.shields.io/badge/node-latest-green?style=flat-square"/>
     <img src="https://img.shields.io/badge/TypeScript-latest-blue?style=flat-square"/>
     <img src="https://img.shields.io/badge/Jest-latest-red?style=flat-square"/>
     <img src="https://img.shields.io/badge/npm-red?style=flat-square"/>
 </p>
+<p align="center">
+    <b style="color:red;">Disclaimer</b>
+    <b>⚠️ This repository is not recommended for use in production. ⚠️</b>
+    This repository is currently in development and may contain bugs or incomplete features. Use at your own risk and do not deploy to a production environment
+</p>
 
-## <span style="color:red;">Warning</span>
+## 📋 **Index**
+1. [⚙️ Usage](#-usage)
+2. [🛠️ Testing](#-testing)
+3. [🗄️Alternatives](#-alternatives)
+4. [📄 Documentation](#-documentation)
 
-**⚠️ This repository is not recommended for use in production. ⚠️**
+## 🛠️ **Usage**
+create a connection. <b>constructor</b> receives `(ip, timeout, inport, port, comm_key) `
+```js
+import Zklib from 'zklib'
 
-This repository is currently in development and may contain bugs or incomplete features. Use at your own risk and do not deploy to a production environment.
+const zkInstance = new Zklib("10.0.0.10",10000,10000,4370,0)
 
-# About zkteco-js
-The zkteco-js library provides a robust solution for Node.js developers to interface with ZK BioMetric Fingerprint Attendance Devices. Its user-friendly API allows seamless extraction of data, such as registered users, logs, and device versions. Developers can also add users, retrieve real-time logs, and clear attendance records. Using a socket connection, the library ensures fast and reliable data exchange. Whether creating an attendance system or a time-and-attendance management application, zkteco-js is the essential tool for integrating biometric devices efficiently.
+await zkInstance.createSocket()
 
-### Testing
+```
+Get <b>all</b> users:
+```js
+
+const users = await zkInstance.getUsers()
+
+```
+Get <b>all</b> attendances:
+```js
+
+const attendances = await zkInstance.getAttendances()
+
+```
+get All templates
+```js
+const templates = await zkInstance.getTemplates() 
+```
+
+save user templates. receives a `User` instance class and an array of `Finger` class. currently only save one template per call.
+```js
+const templates = await zkInstance.saveUserTemplate(user, templates) 
+```
+
+
+enrollUser: receives a user `user_id` and finger ID `fid` where `0 <= fid <= 9`
+```js
+await zkInstance.enrollUser(50,5)
+```
+delete template. receives user id `uid` and finger id where `0 <= fid <= 9`
+```js
+await zkInstance.deleteTemplate(50,5)
+```
+<b>Check the Testing section for more functionalities coverage.</b>
+
+## 🛠️ **Testing**
 
 The repo uses Jest. There is a mock file for test without having a phisical device connected.
 
 for testing your phisical device first create .env file in root directory with the values down below:
 ```
-DEVICE_IP="10.10.10.1"
-DEVICE_PORT="4370" // optional, default 4370
-DEVICE_PASSWORD="1234" // optional. default 0
+DEVICE_IP=10.10.10.1
+DEVICE_PORT=4370
+DEVICE_PASSWORD=1234
 ```
 and then run tests:
 ```
-// run all tests
 npm t
 ```
 
@@ -38,83 +82,18 @@ for example the next command will execute "Generic.test.ts"
 npm t Generic
 ```
 
-
-### Installation
-
-```bash
-npm i zkteco-js
-```
-
-Or, if you prefer Yarn:
-
-```bash
-yarn add zkteco-js
-```
-
-### Usage Example
-
-```js
-const Zkteco = require("zkteco-js");
-
-const manageZktecoDevice = async () => {
-    const device = new Zkteco("192.168.1.106", 4370, 5200, 5000, 1234);
-
-    try {
-        // Create socket connection to the device
-        await device.createSocket();
-
-        // Retrieve and log all attendance records
-        const attendanceLogs = await device.getAttendances();
-        console.log(attendanceLogs);
-
-        // Listen for real-time logs
-        await device.getRealTimeLogs((realTimeLog) => {
-            console.log(realTimeLog);
-        });
-
-        // Manually disconnect after using real-time logs
-        await device.disconnect();
-    } catch (error) {
-        console.error("Error:", error);
-    }
-};
-
-manageZktecoDevice();
-```
-
-### API Reference :
-
-- `createSocket()` - Establishes a connection to the device.
-- `getInfo()` - Provides general information about the device, including log capacity and user count.
-- `getUsers()` - Retrieves an array of all users stored on the device.
-- `setUser(uid, userid, name, password, role = 0, cardno = 0)` - Adds a new user to the device.
-- <span style="color: green; font-weight: bold;">🆕 `deleteUser(uid)` - Delete an user from the device.</span>
-- `getAttendances()` - Retrieves an array of all attendance logs from the device.
-- `getRealTimeLogs(callback)` - Sets up a real-time log stream and calls the provided callback function with each new log entry.
-- `getPIN()` - Retrieves the device PIN.
-- `getTime()` - Retrieves the current time from the device.
-- <span style="color: green; font-weight: bold;">🆕 `setTime(DateTime)` - Updates the device's time.</span>
-- `getFaceOn()` - Checks if the device's Face On feature is enabled.
-- `getSSR()` - Retrieves the device's Self-Service Recorder (SSR) status.
-- `getDeviceVersion()` - Retrieves the device's firmware version.
-- `getDeviceName()` - Retrieves the device's name.
-- `getPlatform()` - Retrieves the device's platform version.
-- `getOS()` - Retrieves the device's operating system version.
-- `getAttendanceSize()` - Retrieves the total number of attendance records stored on the device.
-- `clearAttendanceLog()` - Clears all attendance logs from the device.
-- `disconnect()` - Disconnects the device from the network.
-- <span style="color: green; font-weight: bold;">🆕 `clearData()` - Clear All Data from the device (all users,attendances logs etc ).</span>
-- <span style="color: green; font-weight: bold;">🆕 `voiceTest()` - Voice Test.</span>
-- <span style="color: green; font-weight: bold;">🆕 `getVendor()` - get vendor name.</span>
-- <span style="color: green; font-weight: bold;">🆕 `getProductTime()` - get product created time.</span>
-- <span style="color: green; font-weight: bold;">🆕 `getMacAddress()` - get device MAC address.</span>
-
-
-## Alternatives
-
-- [adrobinoga/zk-protocol](https://github.com/adrobinoga/zk-protocol)
-- [dnaextrim/python_zklib](https://github.com/dnaextrim/python_zklib)
+## 🗄️ **Alternatives**
+#### Javascript
 - [caobo171/node-zklib](https://github.com/caobo171/node-zklib)
+- [conding-libs/zkteco-js](https://github.com/coding-libs/zkteco-js)
+#### Python:
+- [dnaextrim/python_zklib](https://github.com/dnaextrim/python_zklib)
+- [fananimi/pyzk](https://github.com/fananimi/pyzk)
+#### ☕ Java:
+- [mkhoudary/ZKTeco4J](https://github.com/mkhoudary/ZKTeco4J)
+
+## 📄 **Documentation**
+- [adrobinoga/zk-protocol](https://github.com/adrobinoga/zk-protocol)
 
 
 ## License
