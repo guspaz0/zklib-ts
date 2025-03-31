@@ -3,9 +3,9 @@
     "compileOnSave": true,
     "compilerOptions": {
         "target": "ES2024",
-        "module": "preserve",
+        "module": "es6",
         "declaration": true,
-        "declarationDir": "dist/types",
+        "declarationDir": "./dist",
         "skipLibCheck": true,
         "resolveJsonModule": true,
         "moduleResolution": "bundler",

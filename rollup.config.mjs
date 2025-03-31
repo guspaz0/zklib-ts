@@ -11,8 +11,8 @@ export default {
             format: 'cjs'
         },
         {
-            file: 'dist/index.esm.js',
-            format: 'esm'
+            file: 'dist/index.es.js',
+            format: 'es'
         }
     ],
     plugins: [

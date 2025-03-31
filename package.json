@@ -3,12 +3,13 @@
   "version": "1.0.0-development",
   "description": "Unofficial zkteco library allows Node.js developers to easily interface with ZK BioMetric Fingerprint Attendance Devices",
   "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.es.js",
   "typings": "dist/index",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/index.d.ts",
   "type": "commonjs",
   "files": [
-    "dist/"
+    "dist/",
+    "README.md"
   ],
   "scripts": {
     "test": "jest",
@@ -22,6 +23,9 @@
     "url": "https://github.com/guspaz0/zklib-ts.git"
   },
   "keywords": [
+    "typescript",
+    "javascript",
+    "jest",
     "ip",
     "libs",
     "device",
