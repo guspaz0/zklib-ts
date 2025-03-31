@@ -20,7 +20,7 @@
 4. [📄 Documentation](#-documentation)
 
 
-## **Installaction**
+## **Installation**
 You must have Node.js 18 > before run the command down below:
 ```js
 npm i zklib-ts
