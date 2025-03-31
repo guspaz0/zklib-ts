@@ -1,14 +1,14 @@
 /**
  * Represents an Attendance Records
- */
+ */ import {type} from "node:os";
 
 export class Attendance {
-    private sn: number;
-    private user_id: string;
-    private record_time: Date;
-    private type?: number;
-    private state?: number;
-    private ip?: string;
+    sn: number;
+    user_id: string;
+    record_time: Date;
+    type?: number;
+    state?: number;
+    private _ip?: string;
 
     constructor(sn: number, user_id: string, record_time: Date, type?: number, state?: number) {
         this.sn = sn;
@@ -16,6 +16,9 @@ export class Attendance {
         this.record_time = record_time;
         this.type = type;
         this.state = state;
+    }
 
+    set ip(value: string) {
+        this._ip = value;
     }
 }

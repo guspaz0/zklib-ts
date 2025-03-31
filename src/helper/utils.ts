@@ -1,7 +1,7 @@
 import {COMMANDS, USHRT_MAX} from './command';
 import {log} from '../logs/log';
-import {User} from './models/User';
-import {Attendance} from "./models/Attendance";
+import {User} from '../models/User';
+import {Attendance} from "../models/Attendance";
 
 interface ParsedTime {
     year: number;

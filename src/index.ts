@@ -1,9 +1,9 @@
 import {ZTCP} from './ztcp';
 import {ZUDP} from './zudp';
-import { User } from './helper/models/User';
-import { Finger } from './helper/models/Finger';
+import { User } from './models/User';
+import { Finger } from './models/Finger';
 import { ZkError, ERROR_TYPES } from './exceptions/handler';
-import {Attendance} from "./helper/models/Attendance";
+import {Attendance} from "./models/Attendance";
 import {RecordData16, UserData28, DeviceInfo} from "./helper/utils";
 
 

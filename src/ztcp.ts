@@ -14,8 +14,8 @@ import {
     removeTcpHeader
 } from './helper/utils';
 
-import {Finger} from './helper/models/Finger';
-import {User} from './helper/models/User';
+import {Finger} from './models/Finger';
+import {User} from './models/User';
 import {ZkError} from './exceptions/handler';
 
 

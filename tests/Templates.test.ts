@@ -1,6 +1,6 @@
 import Zklib from "../src";
-import { User } from "../src/helper/models/User";
-import { Finger } from "../src/helper/models/Finger";
+import { User } from "../src/models/User";
+import { Finger } from "../src/models/Finger";
 import { UserData28 } from "../src/helper/utils";
 import { ZkError } from "../src/exceptions/handler";
 
