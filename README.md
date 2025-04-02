@@ -13,15 +13,23 @@
 </p>
 
 ## 📋 **Index**
+1. [Installation](#-installation)
 1. [⚙️ Usage](#-usage)
 2. [🛠️ Testing](#-testing)
 3. [🗄️Alternatives](#-alternatives)
 4. [📄 Documentation](#-documentation)
 
+
+## **Installation**
+You must have Node.js ^18 before run the command down below:
+```js
+npm i zklib-ts
+```
+
 ## 🛠️ **Usage**
 create a connection. <b>constructor</b> receives `(ip, timeout, inport, port, comm_key) `
 ```js
-import Zklib from 'zklib'
+import Zklib from 'zklib-ts'
 
 const zkInstance = new Zklib("10.0.0.10",10000,10000,4370,0)
 
@@ -63,8 +71,10 @@ await zkInstance.deleteTemplate(50,5)
 
 ## 🛠️ **Testing**
 
-The repo uses Jest. There is a mock file for test without having a phisical device connected.
-
+The repo uses Jest. There is a mock file for test without having a phisical device connected. Before start you will need to install dependencies.
+```js
+npm i
+```
 for testing your phisical device first create .env file in root directory with the values down below:
 ```
 DEVICE_IP=10.10.10.1
