@@ -452,5 +452,6 @@ export default class Zklib {
             'EXECUTE_CMD'
         );
     }
-
 }
+
+export type { Attendance, User, Finger, DeviceInfo, Zklib }
