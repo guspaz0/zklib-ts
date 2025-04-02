@@ -8,7 +8,7 @@ export class Attendance {
     record_time: Date;
     type?: number;
     state?: number;
-    private _ip?: string;
+    ip?: string;
 
     constructor(sn: number, user_id: string, record_time: Date, type?: number, state?: number) {
         this.sn = sn;
@@ -16,9 +16,5 @@ export class Attendance {
         this.record_time = record_time;
         this.type = type;
         this.state = state;
-    }
-
-    set ip(value: string) {
-        this._ip = value;
     }
 }
