@@ -9,7 +9,8 @@ import {
     authKey, RecordData16, UserData28
 } from './helper/utils';
 
-import { MAX_CHUNK, REQUEST_DATA, COMMANDS } from './helper/command';
+import { REQUEST_DATA, COMMANDS } from './helper/command';
+import { Constants } from './helper/command';
 import { log } from './logs/log';
 import timeParser from "./helper/time";
 import * as dgram from "node:dgram";
@@ -326,10 +327,10 @@ export class ZUDP {
 
             this.socket!.on('message', handleOnData);
 
-            const chunkCount = Math.ceil(size / MAX_CHUNK);
+            const chunkCount = Math.ceil(size / Constants.MAX_CHUNK);
             for (let i = 0; i < chunkCount; i++) {
-                const start = i * MAX_CHUNK;
-                const chunkSize = (i === chunkCount - 1) ? size % MAX_CHUNK : MAX_CHUNK;
+                const start = i * Constants.MAX_CHUNK;
+                const chunkSize = (i === chunkCount - 1) ? size % Constants.MAX_CHUNK : Constants.MAX_CHUNK;
                 this.sendChunkRequest(start, chunkSize).catch(err => {
                     internalCallback(Buffer.from([]), err);
                 });

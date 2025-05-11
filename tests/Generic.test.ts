@@ -1,10 +1,10 @@
 import Zklib from "../src";
 
-const DEVICE_IP = process.env.DEVICE_IP;
-const DEVICE_PORT = +process.env.DEVICE_PORT;
+const DEVICE_IP = process.env.DEVICE_IP as string;
+const DEVICE_PORT = +process.env.DEVICE_PORT as number;
 const TIMEOUT = 10000;
 const INPORT = 4000;
-const COMM_KEY = +process.env.DEVICE_PASSWORD;
+const COMM_KEY = +process.env.DEVICE_PASSWORD as number;
 
 describe('Zkteco Device Integration Tests', () => {
     let zkInstance: Zklib;

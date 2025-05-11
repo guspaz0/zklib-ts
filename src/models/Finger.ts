@@ -24,8 +24,8 @@ export class Finger {
         this.size = template.length;
 
         // Create mark showing first and last 8 bytes as hex
-        const start = template.slice(0, 8).toString('hex');
-        const end = template.slice(-8).toString('hex');
+        const start = Uint8Array.prototype.slice.call(template, 0, 8).toString('hex');
+        const end = Uint8Array.prototype.slice.call(template,-8).toString('hex');
         this.mark = `${start}...${end}`;
     }
 

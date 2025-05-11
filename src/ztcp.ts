@@ -1,5 +1,6 @@
 import {Socket} from 'net'
-import {COMMANDS, MAX_CHUNK, REQUEST_DATA, USHRT_MAX} from "./helper/command"
+import { COMMANDS, REQUEST_DATA } from "./helper/command"
+import { Constants } from './helper/command';
 import timeParser from './helper/time';
 
 import {
@@ -17,6 +18,7 @@ import {
 import {Finger} from './models/Finger';
 import {User} from './models/User';
 import {ZkError} from './exceptions/handler';
+import { TimerOptions } from 'timers';
 
 
 export class ZTCP {
@@ -51,10 +53,20 @@ export class ZTCP {
     private userPacketSize: number = 72
     private verbose: boolean = false
 
+    private totalPackets: number = 0;
+    private totalBuffer: Buffer;
+    private realTotalBuffer: Buffer;
+    private replyData: Buffer;
+    private sizePrepareData: number = 0;
+    private remain: number = 0;
+    private numberChunks: number = 0;
+    private timer: number | NodeJS.Timeout;
+    private cb: Function;
+
     constructor(ip: string, port: number, timeout: number, comm_key: number, verbose: boolean) {
         this.ip = ip;
         this.port = port;
-        this.timeout = timeout;
+        this.timeout = timeout? timeout : 10000;
         this.replyId = 0;
         this.comm_key = comm_key;
         this.verbose = verbose;
@@ -392,8 +404,8 @@ export class ZTCP {
 
                     // We need to split the data to many chunks to receive , because it's to large
                     // After receiving all chunk data , we concat it to TotalBuffer variable , that 's the data we want
-                    let remain = size % MAX_CHUNK
-                    let numberChunks = Math.round(size - remain) / MAX_CHUNK
+                    let remain = size % Constants.MAX_CHUNK
+                    let numberChunks = Math.round(size - remain) / Constants.MAX_CHUNK
                     let totalPackets = numberChunks + (remain > 0 ? 1 : 0)
                     let replyData = Buffer.from([])
 
@@ -432,7 +444,7 @@ export class ZTCP {
                             realTotalBuffer = Buffer.concat([realTotalBuffer, totalBuffer.subarray(16, 8 + packetLength)])
                             totalBuffer = totalBuffer.subarray(8 + packetLength)
 
-                            if ((totalPackets > 1 && realTotalBuffer.length === MAX_CHUNK + 8)
+                            if ((totalPackets > 1 && realTotalBuffer.length === Constants.MAX_CHUNK + 8)
                                 || (totalPackets === 1 && realTotalBuffer.length === remain + 8)) {
 
                                 replyData = Buffer.concat([replyData, realTotalBuffer.subarray(8)])
@@ -457,9 +469,9 @@ export class ZTCP {
 
                     for (let i = 0; i <= numberChunks; i++) {
                         if (i === numberChunks) {
-                            await this.sendChunkRequest(numberChunks * MAX_CHUNK, remain)
+                            await this.sendChunkRequest(numberChunks * Constants.MAX_CHUNK, remain)
                         } else {
-                            await this.sendChunkRequest(i * MAX_CHUNK, MAX_CHUNK)
+                            await this.sendChunkRequest(i * Constants.MAX_CHUNK, Constants.MAX_CHUNK)
                         }
                     }
 
@@ -1191,30 +1203,41 @@ export class ZTCP {
         }
     }
 
+    /**
+     * Get all Finger objects
+     * @returns {Finger[]}
+     */
     
-    
-    async getTemplates(): Promise<Finger[]>{
+    async getTemplates(callbackInProcess: any = () => {}): Promise<Finger[]>{
         try {
+            // await this.getSizes()
+            // if (this.fp_count == 0) return []
+            this.cb = callbackInProcess
             await this.freeData()
             await this.disableDevice()
+
+            const Buffer = await this.readWithBufferTemplates(REQUEST_DATA.GET_TEMPLATES, callbackInProcess) as Record<string, Buffer>
+            //console.log(Object.keys(Buffer))
+            if (Buffer.err) console.log(Buffer.err)
+
+            let templateData = Buffer.data.subarray(4); // Start from index 4 to the end
+            let totalSize = Buffer.data.readUIntLE(0, 4);
+            let templates = [];
             
-            const Buffer = await this.readWithBuffer(REQUEST_DATA.GET_TEMPLATES) as Record<string, Buffer>
-
-            let templateData = Buffer.data.slice(4,) 
-            let totalSize = Buffer.data.readUIntLE(0,4)
-            let templates = []
             while (totalSize) {
-                const buf = templateData.slice(0,6)
-                const size = buf.readUIntLE(0,2)
+                const buf = templateData.subarray(0, 6);
+                const size = buf.readUIntLE(0, 2);
+                
                 templates.push(new Finger(
-                    buf.readUIntLE(2,2),
-                    buf.readUIntLE(4,1),
-                    buf.readUIntLE(5,1),
-                    templateData.slice(6,size)
-                ))
-
-                templateData = templateData.slice(size,)
-                totalSize -= size
+                    buf.readUIntLE(2, 2),
+                    buf.readUIntLE(4, 1),
+                    buf.readUIntLE(5, 1),
+                    templateData.subarray(6, size)  // Using subarray instead of slice
+                ));
+                if (templates.length == 70) break
+                
+                templateData = templateData.subarray(size); // Using subarray instead of slice
+                totalSize -= size;
             }
             return templates
         } catch (err) {
@@ -1224,6 +1247,144 @@ export class ZTCP {
             await this.enableDevice()
             await this.freeData()
         }
+    }
+
+    async readWithBufferTemplates(reqData: Buffer | string, cb = null): Promise<Record<string, Buffer | number>> {
+        try {
+            this.replyId++;
+            const buf = createTCPHeader(COMMANDS.CMD_DATA_WRRQ, this.sessionId, this.replyId, reqData)
+            let reply = null;
+
+            reply = await this.requestData(buf)
+
+            const data = reply.subarray(16)
+            const { commandId, payloadSize } = decodeTCPHeader(data)
+            this.sizePrepareData = payloadSize;
+            this.verbose && console.log(`size ${COMMANDS[commandId]} is: ${payloadSize} linea 385`)
+            switch (commandId) {
+                case COMMANDS.CMD_ACK_OK:
+                case COMMANDS.CMD_PREPARE_DATA: {
+                    // this case show that data is prepared => send command to get these data
+                    // reply variable includes information about the size of following data
+                    const recvData = reply.subarray(16)
+                    this.sizePrepareData = recvData.readUIntLE(1, 4)
+
+                    // We need to split the data to many chunks to receive , because it's to large
+                    // After receiving all chunk data , we concat it to TotalBuffer variable , that 's the data we want
+                    this.remain = this.sizePrepareData % Constants.MAX_CHUNK
+                    this.numberChunks = Math.round(this.sizePrepareData - this.remain) / Constants.MAX_CHUNK
+                    this.totalPackets = this.numberChunks + (this.remain > 0 ? 1 : 0)
+                    this.replyData = Buffer.from([])
+                    this.totalBuffer = Buffer.from([])
+                    this.realTotalBuffer = Buffer.from([])
+
+                    if (this.verbose) {
+                        console.log(`size fill be ${this.sizePrepareData} - ${COMMANDS[commandId]}`)
+                        console.log(`rwb: #${this.numberChunks} packets of max ${Constants.MAX_CHUNK} bytes, and extra ${this.remain} bytes remain`)
+                    }
+
+                    this.timer = setTimeout(() => {
+                        this.internalCallback(this.replyData, new Error('TIMEOUT WHEN RECEIVING PACKET'))
+                    }, this.timeout)
+
+                    this.socket.once('close', () => {
+                        this.internalCallback(this.replyData, new Error('Socket is disconnected unexpectedly'))
+                    })
+
+                    this.socket.on('data', this.handleOnDataTemplate);
+
+                    for (let i = 0; i <= this.numberChunks; i++) {
+                        if (i === this.numberChunks) {
+                            console.log("CHUNK linea 463: #", this.numberChunks, "\n current index: ", i)
+                            await this.sendChunkRequest(this.numberChunks * Constants.MAX_CHUNK, this.remain)
+                        } else {
+                            await this.sendChunkRequest(i * Constants.MAX_CHUNK, Constants.MAX_CHUNK)
+                        }
+                    }
+
+                    break;
+                }
+                default: {
+                    throw new Error('ERROR_IN_UNHANDLE_CMD ' + exportErrorMessage(header.commandId))
+                }
+            }
+        } catch (err) {
+            return err
+        }
+    }
+
+    internalCallback(replyData: Buffer, err = null) {
+        this.socket && this.socket.removeListener('data', this.handleOnDataTemplate)
+        this.timer && clearTimeout(this.timer)
+        return {data: replyData, err}
+    }
+
+    handleOnDataTemplate(reply: Buffer) {
+        const readData = decodeTCPHeader(reply.subarray(0, 16))
+        if (this.verbose) COMMANDS[readData.commandId] && console.log("linea 1300: ", COMMANDS[readData.commandId])
+        if (COMMANDS.CMD_PREPARE_DATA == readData.commandId) {
+            console.log(readData)
+            this.verbose && console.log(`recieve chunk: prepare data size is ${readData.payloadSize}`)
+        }
+        
+        const check = checkNotEventTCP(reply)
+        if (check) return;
+        clearTimeout(this.timer)
+        this.timer = setTimeout(() => {
+            this.internalCallback(this.replyData,
+                new Error(`TIME OUT !! ${this.totalPackets} PACKETS REMAIN !`))
+        }, this.timeout)
+
+        this.totalBuffer = Buffer.concat([this.totalBuffer, reply])
+        const packetLength = this.totalBuffer.readUIntLE(4, 2)
+        const sizeData = this.testTcpTop(reply)
+        if (this.verbose) {
+            console.log(`tcp_length ${this.totalBuffer.length}, size ${sizeData}, reply length ${packetLength}`)
+            console.log(`partial recv ${reply.length} \n still need ${packetLength-this.totalBuffer.length-8}`)
+        }
+        if (this.totalBuffer.length >= 8 + packetLength) {
+
+            this.realTotalBuffer = Buffer.concat([this.realTotalBuffer, this.totalBuffer.subarray(16, packetLength)])
+            this.totalBuffer = this.totalBuffer.subarray(8 + packetLength)
+
+            if ((this.totalPackets > 1 && this.realTotalBuffer.length === Constants.MAX_CHUNK + 8)
+                || (this.totalPackets === 1 && this.realTotalBuffer.length === this.remain + 8)) {
+
+                this.replyData = Buffer.concat([this.replyData, this.realTotalBuffer.subarray(8)])
+                this.totalBuffer = Buffer.from([])
+                this.realTotalBuffer = Buffer.from([])
+
+                console.log(`----------------total packets: ${this.totalPackets}--------------`)
+                this.totalPackets -= 1
+                this.cb && this.cb(this.replyData.length, size)
+
+                if (this.totalPackets <= 0) {
+                    this.internalCallback(this.replyData)
+                }
+            }
+        }
+    }
+
+    /**
+     * Return size
+     * @param packet 
+     */
+    testTcpTop(packet) {
+        // Check if packet is too small
+        if (packet.length <= 8) return 0;
+        
+        // Extract header values using little-endian format
+        const headerValue1 = packet.readUInt16LE(0);
+        const headerValue2 = packet.readUInt16LE(2);
+        const size = packet.readUInt32LE(4);
+        
+        // Check if magic numbers match
+        if (headerValue1 === Constants.MACHINE_PREPARE_DATA_1 && 
+            headerValue2 === Constants.MACHINE_PREPARE_DATA_2) {
+            return size;
+        }
+        
+        return 0;
     }
 
     async refreshData(){
@@ -1521,7 +1682,7 @@ export class ZTCP {
 
     async ackOk(){
         try {
-            const buf = createTCPHeader(COMMANDS.CMD_ACK_OK, this.sessionId, USHRT_MAX-1, Buffer.from([]))
+            const buf = createTCPHeader(COMMANDS.CMD_ACK_OK, this.sessionId, Constants.USHRT_MAX-1, Buffer.from([]))
             this.socket.write(buf)
         } catch (e) {
             throw new ZkError(e,COMMANDS.CMD_ACK_OK, this.ip)

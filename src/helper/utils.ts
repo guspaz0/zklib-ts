@@ -1,4 +1,5 @@
-import {COMMANDS, USHRT_MAX} from './command';
+import {COMMANDS} from './command';
+import { Constants } from './command';
 import {log} from '../logs/log';
 import {User} from '../models/User';
 import {Attendance} from "../models/Attendance";
@@ -62,9 +63,9 @@ const createChkSum = (buf: Buffer): number => {
         } else {
             chksum += buf.readUInt16LE(i);
         }
-        chksum %= USHRT_MAX;
+        chksum %= Constants.USHRT_MAX;
     }
-    chksum = USHRT_MAX - chksum - 1;
+    chksum = Constants.USHRT_MAX - chksum - 1;
 
     return chksum;
 };
@@ -83,7 +84,7 @@ export const createUDPHeader = (command: number, sessionId: number, replyId: num
     const chksum2 = createChkSum(buf);
     buf.writeUInt16LE(chksum2, 2);
 
-    replyId = (replyId + 1) % USHRT_MAX;
+    replyId = (replyId + 1) % Constants.USHRT_MAX;
     buf.writeUInt16LE(replyId, 6);
 
     return buf;
@@ -103,7 +104,7 @@ export const createTCPHeader = (command: number, sessionId: number, replyId: num
     const chksum2 = createChkSum(buf);
     buf.writeUInt16LE(chksum2, 2);
 
-    replyId = (replyId + 1) % USHRT_MAX;
+    replyId = (replyId + 1) % Constants.USHRT_MAX;
     buf.writeUInt16LE(replyId, 6);
 
     const prefixBuf = Buffer.from([0x50, 0x50, 0x82, 0x7d, 0x13, 0x00, 0x00, 0x00]);
