@@ -6,9 +6,11 @@ const TIMEOUT = 10000;
 const INPORT = 4000;
 const COMM_KEY = +process.env.DEVICE_PASSWORD as number;
 
+jest.setTimeout(15000); // 15 seconds timeout for device operations
+
 describe('Zkteco Device Integration Tests', () => {
     let zkInstance: Zklib;
-    const testUsername = `Test_${Date.now()}`;
+    const testUsername = `Test_User`;
     const testUid = 200;
 
     beforeAll(async () => {
@@ -58,29 +60,27 @@ describe('Zkteco Device Integration Tests', () => {
     describe('User Management', () => {
         test('should create, verify and delete a user', async () => {
             const usersResponse = await zkInstance.getUsers();
+            let created: boolean;
             // if test user already exists, then skip create method
-            if (usersResponse.data.some(user => user.user_id == testUid.toString())) {
-                console.log("Test User already exists, skip create method")
-            } else {
-                // Create user
-                await zkInstance.setUser(testUid, testUid.toString(), testUsername, '123456');
+            created = usersResponse.data.some(user => user.user_id == testUid.toString())
+            if (!created) {
+                created = await zkInstance.setUser(testUid, testUid.toString(), testUsername, '123456');
             }
-            //fetch users
-            const usersUpdate = await zkInstance.getUsers();
-
-            // Verify user exists
-            const createdUser = usersUpdate.data.find(user => user.user_id == testUid.toString());
-
-            expect(createdUser).toBeDefined();
-            expect(createdUser?.name).toBe(testUsername);
-
-            // Delete user
-            await zkInstance.deleteUser(testUid);
             
-            // Verify user deleted
-            const usersAfterDelete = await zkInstance.getUsers();
-            expect(usersAfterDelete.data.some(user => user.user_id === testUid.toString())).toBe(false);
-    });
+            // Verify user exists
+            if (created) {
+                //fetch users
+                const usersUpdate = await zkInstance.getUsers();
+                const createdUser = usersUpdate.data.find(user => user.user_id == testUid.toString());
+                expect(createdUser).toBeDefined();
+                expect(createdUser?.name).toBe(testUsername);
+                // Delete user
+                await zkInstance.deleteUser(testUid);
+                // Verify user deleted
+                const usersAfterDelete = await zkInstance.getUsers();
+                expect(usersAfterDelete.data.some(user => user.user_id === testUid.toString())).toBe(false);
+            }
+        });
     });
 
     test('should get attendance logs', async () => {

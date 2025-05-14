@@ -6,11 +6,9 @@
     <img src="https://img.shields.io/badge/Jest-latest-red?style=flat-square"/>
     <img src="https://img.shields.io/badge/npm-red?style=flat-square"/>
 </p>
-<p align="center">
-    <b style="color:red;">Disclaimer</b>
-    <b>⚠️ This repository is not recommended for use in production. ⚠️</b>
-    This repository is currently in development and may contain bugs or incomplete features. Use at your own risk and do not deploy to a production environment
-</p>
+
+> [!WARNING]
+> This repository is currently in development and may contain bugs or incomplete features. Use at your own risk and do not deploy to a production environment
 
 ## 📋 **Index**
 1. [Installation](#-installation)
