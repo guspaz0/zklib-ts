@@ -138,7 +138,7 @@ export const parseTimeToDate = (time: number): Date => {
     time = (time - month) / 12;
     const year = time + 2000;
 
-    return new Date(year, month, day, hour, minute, second);
+    return new Date(Date.UTC(year, month, day, hour, minute, second));
 };
 
 export const decodeUserData28 = (userData: Buffer): UserData28 => {

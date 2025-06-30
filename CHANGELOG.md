@@ -1,4 +1,8 @@
-## 1.0.2 (2025-05)
+## 1.0.3-development  (2025-05)
+- Changed attendance record time to UTC. since its imposible to set timezone in some devices.
+
+
+## 1.0.2-development (2025-05)
 - Fixed Read with buffer, now i can get all Finger templates.
 - Changed commands constant to enums.
 - Added short comments for every command.

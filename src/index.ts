@@ -328,7 +328,7 @@ export default class Zklib {
         );
     }
 
-    async getTemplates(): Promise<Finger[]> {
+    async getTemplates(): Promise<Record<string, Finger[]>> {
         return this.functionWrapper(
             () => this.ztcp.getTemplates(),
             async () => { throw new Error('UDP get templates not supported'); },
