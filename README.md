@@ -1,3 +1,4 @@
+[![NPM](https://nodei.co/npm/zklib-ts.png?downloads=true&stars=true)](https://www.npmjs.com/package/is-electron)
 <h1 align="center">zklib ts</h1>
 <p align="center">An unofficial library that provides a robust solution for Node.js developers to interface with ZKTeco Devices.</p>
 <p align="center">
@@ -107,3 +108,4 @@ npm t Generic
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+
