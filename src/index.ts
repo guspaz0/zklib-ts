@@ -452,6 +452,14 @@ export default class Zklib {
             'EXECUTE_CMD'
         );
     }
+
+    async getNetworkParams() {
+        return this.functionWrapper(
+            () => this.ztcp.getNetworkParams(),
+            async () => { throw new Error('UDP getNetworkParams not implemented'); },
+            'NETWORK_PARAMS'
+        );
+    }
 }
 
 export type { Attendance, User, Finger, DeviceInfo, Zklib }

@@ -765,6 +765,30 @@ export class ZTCP {
         }
     }
 
+    async getNetworkParams() {
+        try {
+            const params = {
+                IPAddress: this.ip,
+                NetMask: '',
+                GATEIPAddress: ''
+            }
+            const keywords = Object.keys(params)
+            for await (const keyword of keywords) {
+                const data = await this.executeCmd(COMMANDS.CMD_OPTIONS_RRQ, keyword)
+                params[keyword] = data.slice(8)
+                    .toString('utf-8')
+                    .replace(`${keyword}=`, '')     // Remove the keyword prefix
+                    .replace(/\u0000/g, '')
+                    .replace('=','.')               // Replace equal simbol to dot, due to sometimes there are parsing errors
+            }
+
+            return params;
+        } catch (err) {
+            console.error("Error getting Network Params: ", err);
+            throw err;
+        }
+    }
+
 
     async getSerialNumber() {
         const keyword = '~SerialNumber';
@@ -775,10 +799,13 @@ export class ZTCP {
 
             // Extract and format the serial number from the response data
             const serialNumber = data.slice(8) // Skip the first 8 bytes (header)
-                .toString('utf-8')              // Convert buffer to string
+                .toString('utf-8')                             // Convert buffer to string
                 .replace(`${keyword}=`, '')     // Remove the keyword prefix
+                .replace('=','')                // Remove sometines last number is a character equal to = or unknow character
                 .replace(/\u0000/g, '');        // Remove null characters
-
+            if (serialNumber.length !== 13 && this.verbose) {
+                console.warn('Serial number length not equal to 13, check')
+            }
             return serialNumber;
         } catch (err) {
             // Log the error for debugging

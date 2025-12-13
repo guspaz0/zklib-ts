@@ -91,8 +91,14 @@ describe('Zkteco Device Integration Tests', () => {
 
     test('should get device serial number', async () => {
         const serialNo = await zkInstance.getSerialNumber();
-        console.log("Serial Number:", serialNo);
+        //console.log("Serial Number:", serialNo);
         expect(typeof serialNo).toBe('string');
+    });
+
+    test('should get device Network params', async () => {
+        const networkParams = await zkInstance.getNetworkParams();
+        console.log("Network Params:", networkParams);
+        expect(typeof networkParams).toBe('object');
     });
 
     test('should get device MAC address', async () => {

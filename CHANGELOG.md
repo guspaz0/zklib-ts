@@ -1,3 +1,8 @@
+## 1.0.4-development (2025-12)
+- Fix extraneous values when parsing buffers in serial number, for example.
+- Added method getNetworkParams()
+- update jest dependencie, due to security risks.
+
 ## 1.0.3-development  (2025-05)
 - Changed attendance record time to UTC. since its imposible to set timezone in some devices.
 
