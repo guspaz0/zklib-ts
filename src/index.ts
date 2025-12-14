@@ -4,7 +4,7 @@ import { User } from './models/User';
 import { Finger } from './models/Finger';
 import { ZkError, ERROR_TYPES } from './exceptions/handler';
 import {Attendance} from "./models/Attendance";
-import {RecordData16, UserData28, DeviceInfo} from "./helper/utils";
+import {RecordData16, UserData28, DeviceInfo, FreeSizes} from "./helper/utils";
 
 
 export default class Zklib {
@@ -380,10 +380,10 @@ export default class Zklib {
         );
     }
 
-    async getSizes(): Promise<DeviceInfo> {
+    async getSizes(): Promise<FreeSizes> {
         return this.functionWrapper(
             () => this.ztcp.getSizes(),
-            () => this.zudp.getInfo(),
+            () => {throw new Error('not implemented ofr UDP')},
             'GET_SIZES'
         );
     }

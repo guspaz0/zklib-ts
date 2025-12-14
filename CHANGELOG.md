@@ -1,3 +1,6 @@
+## 1.0.4
+- Better Types implementation. 
+
 ## 1.0.4-development (2025-12)
 - Fix extraneous values when parsing buffers in serial number, for example.
 - Added method getNetworkParams()

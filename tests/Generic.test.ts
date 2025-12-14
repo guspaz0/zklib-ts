@@ -91,7 +91,7 @@ describe('Zkteco Device Integration Tests', () => {
 
     test('should get device serial number', async () => {
         const serialNo = await zkInstance.getSerialNumber();
-        //console.log("Serial Number:", serialNo);
+        console.log("Serial Number:", serialNo);
         expect(typeof serialNo).toBe('string');
     });
 
@@ -111,5 +111,17 @@ describe('Zkteco Device Integration Tests', () => {
         const firmware = await zkInstance.getFirmware();
         console.log("Firmware:", firmware);
         expect(typeof firmware).toBe('string');
-    });
+    })
+
+    test("should get device face function", async ()=> {
+        const faceFunOn = await zkInstance.getFaceOn();
+        console.log("Face:", faceFunOn);
+        expect(typeof faceFunOn).toBe('string');
+    })
+
+    test("should get device ZKteco FingerPrint version", async ()=> {
+        const faceFunOn = await zkInstance.getDeviceVersion();
+        console.log("ZKFP Version:", faceFunOn);
+        expect(typeof faceFunOn).toBe('string');
+    })
 });

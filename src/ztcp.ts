@@ -701,10 +701,10 @@ export class ZTCP {
         const keyword = '~OEMVendor';
 
         try {
-            // Execute the command to get serial number
+            // Execute the command to get oem vendor
             const data = await this.executeCmd(COMMANDS.CMD_OPTIONS_RRQ, keyword);
 
-            // Extract and format the serial number from the response data
+            // Extract and format the oem bendor from the response data
             const vendor = data.slice(8) // Skip the first 8 bytes (header)
                 .toString('ascii')              // Convert buffer to string
                 .replace(`${keyword}=`, '')     // Remove the keyword prefix

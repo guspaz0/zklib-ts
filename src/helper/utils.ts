@@ -40,6 +40,36 @@ interface TCPHeader extends UDPHeader {
     payloadSize: number;
 }
 
+export type FreeSizes = {
+    /** Number of users */
+    userCounts: number
+    /** Number of logs */
+    logCounts: number
+    /** Number of fingerprints */
+    fingerCount: number
+    /** Number of admins */
+    adminCount: number
+    /** Number or opLogs, maybe access control events? */
+    opLogCount: number
+    /** Capacity of logs in bytes */
+    logCapacity:  number
+    /** Capacity of fingerprints */
+    fingerCapacity: number
+    /** Capacity of users */
+    userCapacity: number
+    /** Capacity of oplog */
+    attLogCapacity: number
+    /** Number of available finger templates */
+    fingerAvailable: number
+    /** Number of available Users */
+    userAvailable: number
+    /** Number of attendanceLog available */
+    attLogAvailable: number
+    /** Number of faces */
+    faceCount: number
+    /** Capacity of faces */
+    faceCapacity: number
+}
 
 
 const parseHexToTime = (hex: Buffer): Date => {
