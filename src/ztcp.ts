@@ -1007,7 +1007,9 @@ export class ZTCP {
             const data = await this.executeCmd(1100, '');
 
             // Extract and return the firmware version from the response data
-            return data.slice(8).toString('ascii'); // Skip the first 8 bytes (header) and convert to ASCII string
+            return data.slice(8) // Skip the first 8 bytes (header)
+                .toString('ascii') // convert to ASCII string
+                .replace(/\u0000/g, ''); // remove x00
         } catch (err) {
             // Log the error for debugging
             console.error('Error getting firmware version:', err);
