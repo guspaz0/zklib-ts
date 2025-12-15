@@ -792,19 +792,27 @@ export class ZTCP {
 
     async getSerialNumber() {
         const keyword = '~SerialNumber';
-
+        let serialNumber = ''
+        let count = 10;
         try {
             // Execute the command to get serial number
-            const data = await this.executeCmd(COMMANDS.CMD_OPTIONS_RRQ, keyword);
+            /**
+             * @dev implemented a counter and a while loop because sometimes serial number parses wrong for some reason
+             * */
+            while (serialNumber.length !== 13 && count > 0) {
+                const data = await this.executeCmd(COMMANDS.CMD_OPTIONS_RRQ, keyword);
 
-            // Extract and format the serial number from the response data
-            const serialNumber = data.slice(8) // Skip the first 8 bytes (header)
-                .toString('utf-8')                             // Convert buffer to string
-                .replace(`${keyword}=`, '')     // Remove the keyword prefix
-                .replace('=','')                // Remove sometines last number is a character equal to = or unknow character
-                .replace(/\u0000/g, '');        // Remove null characters
-            if (serialNumber.length !== 13 && this.verbose) {
-                console.warn('Serial number length not equal to 13, check')
+                // Extract and format the serial number from the response data
+                const SN = data.slice(8) // Skip the first 8 bytes (header)
+                    .toString('utf-8')                             // Convert buffer to string
+                    .replace(`${keyword}=`, '')     // Remove the keyword prefix
+                    .replace('=','')                // Remove sometines last number is a character equal to = or unknow character
+                    .replace(/\u0000/g, '');        // Remove null characters
+                if (serialNumber.length !== 13 && this.verbose) {
+                    console.warn('Serial number length not equal to 13, check')
+                }
+                count--;
+                serialNumber = SN;
             }
             return serialNumber;
         } catch (err) {
