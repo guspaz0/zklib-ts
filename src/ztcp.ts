@@ -415,8 +415,8 @@ export class ZTCP {
                     for (let i = 0; i <= numberChunks;i++) {
                         const data = await new Promise((resolve2, reject2) => {
                             try {
-                                this.sendChunkRequest(i * Constants.MAX_CHUNK, 
-                                    (i === numberChunks) 
+                                this.sendChunkRequest(i * Constants.MAX_CHUNK,
+                                    (i === numberChunks)
                                         ? remain
                                         : Constants.MAX_CHUNK
                                     )
@@ -446,13 +446,13 @@ export class ZTCP {
                                     if (totalBuffer.length >= 8 + packetLength) {
                                         realTotalBuffer = Buffer.concat([realTotalBuffer, totalBuffer.subarray(16, 8 + packetLength)])
                                         totalBuffer = totalBuffer.subarray(8 + packetLength)
-            
+
                                         if ((this.packetNumber > 1 && realTotalBuffer.length === (Constants.MAX_CHUNK + 8))
                                             || (this.packetNumber === 1 && realTotalBuffer.length === remain + 8)) {
-            
+
                                             this.packetNumber--
                                             cb && cb(realTotalBuffer.length, size)
-                                            
+
                                             resolve2(realTotalBuffer.subarray(8))
 
                                             totalBuffer = Buffer.from([])
@@ -1240,27 +1240,30 @@ export class ZTCP {
     async getTemplates(callbackInProcess: any = () => {}): Promise<Record<string, Finger[]>>{
         let templates = [] as Finger[];
         try {
+            if (this.socket) {
+                await this.freeData()
+            }
             await this.getSizes()
             if (this.fp_count == 0) return { data: [] }
 
-            await this.freeData()
             await this.disableDevice()
 
-            const Buffer = await this.readWithBuffer(REQUEST_DATA.GET_TEMPLATES) as Record<string, Buffer>
+            const resp = await this.readWithBuffer(REQUEST_DATA.GET_TEMPLATES) as Record<string, Buffer>
             
-            let templateData = Buffer.data.subarray(4);
-            let totalSize = Buffer.data.readUIntLE(0, 4);
+            let templateData = resp.data.subarray(4);
+            let totalSize = resp.data.readUIntLE(0, 4);
             
             while (totalSize) {
                 const buf = templateData.subarray(0, 6);
                 const size = buf.readUIntLE(0, 2);
-                
-                templates.push(new Finger(
-                    buf.readUIntLE(2, 2),
-                    buf.readUIntLE(4, 1),
-                    buf.readUIntLE(5, 1),
-                    templateData.subarray(6, size)
-                ));
+                const uid = buf.readUIntLE(2, 2);
+                const fid = buf.readUIntLE(4, 1);
+                const valid = buf.readUIntLE(5, 1);
+
+                // Force-copy bytes so we don't retain the entire big backing buffer
+                const tplBytes = Buffer.from(templateData.subarray(6, size));
+
+                templates.push(new Finger(uid, fid, valid, tplBytes));
                 
                 templateData = templateData.subarray(size);
                 totalSize -= size;
@@ -1270,8 +1273,8 @@ export class ZTCP {
             this.verbose && console.log("Error getting templates", err)
             return { data: templates };
         } finally {
-            await this.enableDevice()
             await this.freeData()
+            await this.enableDevice()
         }
     }
 

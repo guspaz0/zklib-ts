@@ -53,7 +53,7 @@ describe('Zkteco Enrollment Tests', () => {
         } finally {
             // Verify the fingerprint was enrolled
             const templates = await zkInstance.getTemplates();
-            const userTemplates = templates.filter((t: any) =>
+            const userTemplates = templates.data.filter((t: any) =>
                 t.uid === TEST_UID && t.fid === TEST_FID
             );
             expect(userTemplates.length).toBe(1);

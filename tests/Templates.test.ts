@@ -26,18 +26,18 @@ describe('Zkteco Template Management Tests', () => {
         zkInstance = new Zklib(DEVICE_IP, DEVICE_PORT, TIMEOUT, INPORT, COMM_KEY);
         await zkInstance.createSocket();
 
+        // Get templates for test
+        const templates = await zkInstance.getTemplates();
+        someoneTemplates = templates.data.filter((f: Finger) => f.uid === 144);
+
         // Clean up test user if exists
         usersData = await zkInstance.getUsers();
         if (usersData.data.some(u => u.uid === TEST_UID)) {
             await zkInstance.deleteUser(TEST_UID);
         }
-        
+
         // Create test user
         await zkInstance.setUser(TEST_UID, TEST_USERID, TEST_NAME, TEST_PASSWORD);
-        
-        // Get templates for test
-        const templates = await zkInstance.getTemplates();
-        someoneTemplates = templates.filter((f: Finger) => f.uid === 144);
 
     });
 
@@ -77,7 +77,7 @@ describe('Zkteco Template Management Tests', () => {
 
         // Verify the templates were actually saved
         const updatedTemplates = await zkInstance.getTemplates();
-        const savedTemplates = updatedTemplates.filter((t: Finger) => t.uid === TEST_UID);
+        const savedTemplates = updatedTemplates.data.filter((t: Finger) => t.uid === TEST_UID);
 
         expect(savedTemplates.length).toBeLessThanOrEqual(someoneTemplates.length);
     });
