@@ -5,3 +5,4 @@ dist
 .env
 prueba.js
 tests/plain.test.ts
+.DS_Store
