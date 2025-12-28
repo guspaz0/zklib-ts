@@ -1,3 +1,21 @@
+## 1.0.6
+- **Refactor (Attendance Model):** Updated `Attendance` class constructor and properties.
+    - Reordered constructor parameters for better consistency.
+    - Added JSDoc comments to all properties (`sn`, `user_id`, `type`, `record_time`, etc.).
+    - Improved default value handling for `type` and `state`.
+- **Architecture Refactor:** Moved logic from `ztcp.ts` into specialized service classes for a cleaner code separation.
+    - Created `UserService` to handle user-related operations (fetching users, templates, enrollment, etc.).
+    - Created `TransactionService` to manage attendance logs and record processing.
+    - Updated `ZTCP` to act as a communication layer, delegating domain logic to `_userService` and `_transactionService`.
+- **Documentation (Commands):** Comprehensive update to `COMMANDS` enum.
+    - Added detailed JSDoc comments and hex code references for many protocol commands (e.g., `CMD_ACK_OK`, `CMD_AUTH`, `CMD_CONNECT`).
+- **Testing:** Added `tests/Template.test.ts` containing integration tests for:
+    - User template retrieval.
+    - Base64 fingerprint template uploading.
+    - Fingerprint deletion.
+
+## 1.0.5
+
 ## 1.0.4
 - Better Types implementation. 
 

@@ -336,9 +336,42 @@ export default class Zklib {
         );
     }
 
-    async saveUserTemplate(user: User, fingers: Finger[] = []): Promise<void> {
+    /**
+     * Get a user template for a given user id/pin and finger id
+     * @param uid
+     * @param fid
+     */
+    async getUserTemplate(uid: number, fid: number) {
         return await this.functionWrapper(
-            async () => await this.ztcp.saveUserTemplate(user, fingers),
+            async () => await this.ztcp.getUserTemplate(uid, fid),
+            async () => { throw new Error('UDP get user template not implemented'); },
+            'GET_USER_TEMPLATE'
+        );
+    }
+
+    /**
+     * Upload a single fingerprint for a given user id
+     * @param user_id {string} user id/pin for customer
+     * @param fingerTemplate {string} finger template in base64 string
+     * @param fid {number} finger id is a number between 0 and 9
+     * @param fp_valid {number} finger flag. e.g., valid=1, duress=3
+     */
+    async uploadFingerTemplate(user_id: string, fingerTemplate: string, fid: number, fp_valid: number){
+        return await this.functionWrapper(
+            async () => await this.ztcp.uploadFingerTemplate(user_id, fingerTemplate, fid, fp_valid),
+            async () => { throw new Error('UDP get user template not implemented'); },
+            'UPLOAD_USER_TEMPLATE'
+        );
+    }
+    /**
+     * save user and template
+     *
+     * @param {string} user_id - user id for customer
+     * @param {Finger[]} fingers - Array of finger class
+     */
+    async saveUserTemplate(user_id: string, fingers: Finger[] = []): Promise<void> {
+        return await this.functionWrapper(
+            async () => await this.ztcp.saveUserTemplate(user_id, fingers),
             async () => { throw new Error('UDP save user template not supported'); },
             'SAVE_USER_TEMPLATE'
         );

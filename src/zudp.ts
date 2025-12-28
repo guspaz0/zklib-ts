@@ -441,18 +441,18 @@ export class ZUDP {
         }
     }
 
-    async clearAttendanceLog(): Promise<Buffer> {
+    async clearAttendanceLog(): Promise<boolean> {
         try {
-            return await this.executeCmd(COMMANDS.CMD_CLEAR_ATTLOG, Buffer.alloc(0));
+            return !!await this.executeCmd(COMMANDS.CMD_CLEAR_ATTLOG, Buffer.alloc(0));
         } catch (err) {
             console.error('Error clearing attendance log:', err);
             throw err;
         }
     }
 
-    async clearData(): Promise<Buffer> {
+    async clearData(): Promise<boolean> {
         try {
-            return await this.executeCmd(COMMANDS.CMD_CLEAR_DATA, Buffer.alloc(0));
+            return !!await this.executeCmd(COMMANDS.CMD_CLEAR_DATA, Buffer.alloc(0));
         } catch (err) {
             console.error('Error clearing data:', err);
             throw err;

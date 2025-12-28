@@ -121,21 +121,7 @@ export const createUDPHeader = (command: number, sessionId: number, replyId: num
 };
 
 export const createTCPHeader = (command: number, sessionId: number, replyId: number, data: any): Buffer => {
-    const dataBuffer = Buffer.from(data);
-    const buf = Buffer.alloc(8 + dataBuffer.length);
-
-    buf.writeUInt16LE(command, 0);
-    buf.writeUInt16LE(0, 2);
-
-    buf.writeUInt16LE(sessionId, 4);
-    buf.writeUInt16LE(replyId, 6);
-    dataBuffer.copy(buf, 8);
-
-    const chksum2 = createChkSum(buf);
-    buf.writeUInt16LE(chksum2, 2);
-
-    replyId = (replyId + 1) % Constants.USHRT_MAX;
-    buf.writeUInt16LE(replyId, 6);
+    const buf = createUDPHeader(command,sessionId,replyId,data)
 
     const prefixBuf = Buffer.from([0x50, 0x50, 0x82, 0x7d, 0x13, 0x00, 0x00, 0x00]);
     prefixBuf.writeUInt16LE(buf.length, 4);
@@ -216,8 +202,8 @@ export const decodeRecordData40 = (recordData: Buffer): Attendance => {
             .toString('ascii')
             .split('\0')
             .shift() || '',
-        parseTimeToDate(recordData.readUInt32LE(27)),
         recordData.readUIntLE(26, 1),
+        parseTimeToDate(recordData.readUInt32LE(27)),
         recordData.readUIntLE(31, 1)
     );
 };

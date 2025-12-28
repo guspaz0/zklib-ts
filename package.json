@@ -1,6 +1,6 @@
 {
   "name": "zklib-ts",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Unofficial zkteco library allows Node.js developers to easily interface with ZK BioMetric Fingerprint Attendance Devices",
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",

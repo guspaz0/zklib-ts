@@ -65,7 +65,7 @@ describe('Zkteco Template Management Tests', () => {
 
         // Act
         try {
-            const saveResult = await zkInstance.saveUserTemplate(pepeUser, someoneTemplates);
+            const saveResult = await zkInstance.saveUserTemplate(pepeUser.user_id, someoneTemplates);
             expect(saveResult).toBe(true);
         } catch (error) {
             expect(error).toBeInstanceOf(ZkError || Error)
@@ -73,8 +73,6 @@ describe('Zkteco Template Management Tests', () => {
 
 
         // Assert
-
-
         // Verify the templates were actually saved
         const updatedTemplates = await zkInstance.getTemplates();
         const savedTemplates = updatedTemplates.data.filter((t: Finger) => t.uid === TEST_UID);
@@ -96,12 +94,26 @@ describe('Zkteco Template Management Tests', () => {
 
         try {
             // Act & Assert
-            await zkInstance.saveUserTemplate(pepeUser, [])
+            await zkInstance.saveUserTemplate(pepeUser.user_id, [])
         } catch (error) {
             expect(error).toBeInstanceOf(ZkError || Error)
         }
-
     });
+
+    test('should can delete a finger template', async () => {
+        const deleted = await zkInstance.deleteFinger(TEST_UID, someoneTemplates[0].fid)
+        expect(deleted).toBeTruthy();
+    })
+
+    test('should can upload a base64 string fingerprint', async () => {
+        const baseTemp = someoneTemplates[0]
+        const fingerTemplateBase64 = baseTemp.template.toString('base64');
+        const uploaded = await zkInstance.uploadFingerTemplate(TEST_USERID,fingerTemplateBase64, baseTemp.fid, baseTemp.valid)
+        expect(uploaded).toBeTruthy()
+
+        const getTemp = await zkInstance.getUserTemplate(TEST_UID, baseTemp.fid)
+        expect(getTemp).toEqual(baseTemp.template)
+    })
 
     test('should fail with invalid user', async () => {
         // Arrange
@@ -117,7 +129,7 @@ describe('Zkteco Template Management Tests', () => {
 
         // Act & Assert
         try {
-            await zkInstance.saveUserTemplate(invalidUser, someoneTemplates)
+            await zkInstance.saveUserTemplate(invalidUser.user_id, someoneTemplates)
         } catch (e) {
             expect(e).toBeInstanceOf(ZkError || Error);
         }

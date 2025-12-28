@@ -19,6 +19,8 @@ import {Finger} from './models/Finger';
 import {User} from './models/User';
 import {ZkError} from './exceptions/handler';
 import { TimerOptions } from 'timers';
+import {UserService} from "./services/user.service";
+import {TransactionService} from "./services/transaction.service";
 
 
 export class ZTCP {
@@ -29,16 +31,16 @@ export class ZTCP {
     * @param_comm_key communication key of device (if the case)
     * @return Zkteco TCP socket connection instance
     */
-    private ip: string;
+    ip: string;
     private port: number;
-    private timeout: number;
-    private sessionId: number = 0;
-    private replyId: number = 0;
-    public socket: Socket | undefined;
+    timeout: number;
+    sessionId: number = 0;
+    replyId: number = 0;
+    socket: Socket | undefined;
     private comm_key: number;
 
     private user_count: number = 0;
-    private fp_count: number = 0;
+    fp_count: number = 0;
     private pwd_count: number = 0;
     private oplog_count: number = 0;
     private attlog_count: number = 0;
@@ -50,11 +52,13 @@ export class ZTCP {
     private attlog_av: number = 0;
     private face_count: number = 0;
     private face_cap: number = 0;
-    private userPacketSize: number = 72
-    private verbose: boolean = false
+    userPacketSize: number = 72
+    verbose: boolean = false
 
     private packetNumber: number = 0;
     private replyData: Buffer = Buffer.from([]);
+    _userService: UserService;
+    _transactionService: TransactionService;
 
     constructor(ip: string, port: number, timeout: number, comm_key: number, verbose: boolean) {
         this.ip = ip;
@@ -63,6 +67,8 @@ export class ZTCP {
         this.replyId = 0;
         this.comm_key = comm_key;
         this.verbose = verbose;
+        this._userService = new UserService(this)
+        this._transactionService = new TransactionService(this)
     }
     
 
@@ -172,8 +178,8 @@ export class ZTCP {
                 if (this.socket) {
                     this.socket.removeListener('data', onData); // Remove the data event listener
                 }
-                clearTimeout(timer); // Clear the timeout once data is received
-                resolve(data); // Resolve the promise with the received data
+                clearTimeout(timer);    // Clear the timeout once data is received
+                resolve(data);          // Resolve the promise with the received data
             };
 
             // Attach the data event listener
@@ -311,7 +317,10 @@ export class ZTCP {
         try {
             // Write the message to the socket and wait for a response
             const reply = await this.writeMessage(buf, command === COMMANDS.CMD_CONNECT || command === COMMANDS.CMD_EXIT);
-
+            if (this.verbose) {
+                let headers = decodeTCPHeader(reply)
+                console.log('command: ',COMMANDS[headers.commandId], 'replyid: ', headers.replyId )
+            }
             // Remove TCP header from the response
             const rReply = removeTcpHeader(reply);
 
@@ -483,101 +492,18 @@ export class ZTCP {
      *  @return {Record<string, User[] | Error>} when receiving requested data
      */
     async getUsers(): Promise<{data: User[]}> {
-        try {
-            // Free any existing buffer data to prepare for a new request
-            if (this.socket) {
-                await this.freeData();
-            }
-
-            // Request user data
-            const data = await this.readWithBuffer(REQUEST_DATA.GET_USERS);
-
-            // Free buffer data after receiving the data
-            if (this.socket) {
-                await this.freeData();
-            }
-
-            // Constants for user data processing
-            const USER_PACKET_SIZE = 72;
-
-            // Ensure data.data is a valid buffer
-            if (!data.data || !(data.data instanceof Buffer)) {
-                throw new Error('Invalid data received');
-            }
-
-            let userData = data.data.subarray(4); // Skip the first 4 bytes (headers)
-            const users = [];
-
-            // Process each user packet
-            while (userData.length >= USER_PACKET_SIZE) {
-                // Decode user data and add to the users array
-                const user = decodeUserData72(userData.subarray(0, USER_PACKET_SIZE));
-                users.push(user);
-                userData = userData.subarray(USER_PACKET_SIZE); // Move to the next packet
-            }
-
-            // Return the list of users
-            return { data: users };
-
-        } catch (err) {
-            // Log the error for debugging
-            console.error('Error getting users:', err);
-            // Re-throw the error to be handled by the caller
-            throw err;
-        }
+        return { data: await this._userService.getUsers() }
     }
-
 
     /**
      *
-     * @param {*} ip
      * @param {*} callbackInProcess
      *  reject error when starting request data
      *  return { data: records, err: Error } when receiving requested data
      */
 
     async getAttendances(callbackInProcess: any = () => {}) {
-        try {
-            // Free any existing buffer data to prepare for a new request
-            if (this.socket) {
-                await this.freeData();
-            }
-
-            // Request attendance logs and handle chunked data
-            const data = await this.readWithBuffer(REQUEST_DATA.GET_ATTENDANCE_LOGS, callbackInProcess);
-
-            // Free buffer data after receiving the attendance logs
-            if (this.socket) {
-                await this.freeData();
-            }
-
-            // Constants for record processing
-            const RECORD_PACKET_SIZE = 40;
-
-            // Ensure data.data is a valid buffer
-            if (!data.data || !(data.data instanceof Buffer)) {
-                throw new Error('Invalid data received');
-            }
-
-            // Process the record data
-            let recordData = data.data.subarray(4); // Skip header
-            const records = [];
-
-            // Process each attendance record
-            while (recordData.length >= RECORD_PACKET_SIZE) {
-                const record = decodeRecordData40(recordData.subarray(0, RECORD_PACKET_SIZE));
-                records.push({ ...record, ip: this.ip }); // Add IP address to each record
-                recordData = recordData.subarray(RECORD_PACKET_SIZE); // Move to the next packet
-            }
-
-            // Return the list of attendance records
-            return { data: records };
-
-        } catch (err) {
-            // Log and re-throw the error
-            console.error('Error getting attendance records:', err);
-            throw err; // Re-throw the error for handling by the caller
-        }
+        return await this._transactionService.getAttendances(callbackInProcess)
     }
 
     async freeData() {
@@ -1127,31 +1053,18 @@ export class ZTCP {
     }
 
     async deleteUser(uid: number) {
-        try {
-            // Validate input parameter
-            if (uid <= 0 || uid > 3000) {
-                throw new Error('Invalid UID: must be between 1 and 3000');
-            }
-
-            // Allocate and initialize the buffer
-            const commandBuffer = Buffer.alloc(72);
-
-            // Write UID to the buffer
-            commandBuffer.writeUInt16LE(uid, 0);
-
-            // Send the delete command and return the result
-            const deleted = await this.executeCmd(COMMANDS.CMD_DELETE_USER, commandBuffer);
-            return !!deleted;
-
-        } catch (err) {
-            // Log error details for debugging
-            console.error('Error deleting user:', err);
-
-            // Re-throw error for upstream handling
-            throw err;
-        }
+        return await this._userService.DeleteUser(uid);
     }
 
+    async getUserTemplate(uid: number, fid: number) {
+        try {
+            return await this._userService.DownloadFp(uid, fid);
+        } catch (err) {
+            throw err
+        }  finally {
+            await this.refreshData()
+        }
+    }
 
     async getAttendanceSize() {
         try {
@@ -1171,24 +1084,32 @@ export class ZTCP {
     }
 
 
-// Clears the attendance logs on the device
+    // Clears the attendance logs on the device
     async clearAttendanceLog() {
-        try {
-            // Execute the command to clear attendance logs
-            return await this.executeCmd(COMMANDS.CMD_CLEAR_ATTLOG, '');
-        } catch (err) {
-            // Log the error for debugging purposes
-            console.error('Error clearing attendance log:', err);
-            // Re-throw the error to be handled by the caller
-            throw err;
-        }
+        return await this._transactionService.clearAttendanceLog()
     }
 
-// Clears all data on the device
-    async clearData() {
+    /**
+     * Clears all data on the device
+     * @value 1 Attendance records
+     * @value 2 Fingerprint templates
+     * @value 3 None
+     * @value 4 Operation records
+     * @value 5 User information
+     * @default 0 Delete all
+     */
+    async clearData(value?: number) {
         try {
             // Execute the command to clear all data
-            return await this.executeCmd(COMMANDS.CMD_CLEAR_DATA, '');
+            await this.disableDevice()
+            if (!value) value = 3
+            const buf =  await this.executeCmd(COMMANDS.CMD_CLEAR_DATA, value.toString());
+
+            await this.refreshData()
+
+            await this.enableDevice()
+
+            return !!buf
         } catch (err) {
             // Log the error for debugging purposes
             console.error('Error clearing data:', err);
@@ -1236,46 +1157,8 @@ export class ZTCP {
      * Get all Finger objects
      * @returns {Record<string, Finger[]>}
      */
-    
     async getTemplates(callbackInProcess: any = () => {}): Promise<Record<string, Finger[]>>{
-        let templates = [] as Finger[];
-        try {
-            if (this.socket) {
-                await this.freeData()
-            }
-            await this.getSizes()
-            if (this.fp_count == 0) return { data: [] }
-
-            await this.disableDevice()
-
-            const resp = await this.readWithBuffer(REQUEST_DATA.GET_TEMPLATES) as Record<string, Buffer>
-            
-            let templateData = resp.data.subarray(4);
-            let totalSize = resp.data.readUIntLE(0, 4);
-            
-            while (totalSize) {
-                const buf = templateData.subarray(0, 6);
-                const size = buf.readUIntLE(0, 2);
-                const uid = buf.readUIntLE(2, 2);
-                const fid = buf.readUIntLE(4, 1);
-                const valid = buf.readUIntLE(5, 1);
-
-                // Force-copy bytes so we don't retain the entire big backing buffer
-                const tplBytes = Buffer.from(templateData.subarray(6, size));
-
-                templates.push(new Finger(uid, fid, valid, tplBytes));
-                
-                templateData = templateData.subarray(size);
-                totalSize -= size;
-            }
-            return { data: templates }
-        } catch (err) {
-            this.verbose && console.log("Error getting templates", err)
-            return { data: templates };
-        } finally {
-            await this.freeData()
-            await this.enableDevice()
-        }
+        return await this._userService.getTemplates(callbackInProcess);
     }
 
     /**
@@ -1354,191 +1237,27 @@ export class ZTCP {
     /**
      * save user and template
      * 
-     * @param {User | number | string} user - User class object | uid | user_id
+     * @param {string} user - user_id for customer
      * @param {Finger[]} fingers - Array of finger class. `0 <= index <= 9`
      */
-    async saveUserTemplate(user: User, fingers: Finger[] =[]) {
-        if (fingers.length > 9 || fingers.length == 0) throw new Error("maximum finger length is 10 and can't be empty")
-        try {
-            await this.disableDevice()
-            const users = await this.getUsers() as {data: User[]}
-            //check users exists
-            if (!users.data.some(u => u.uid == user.uid || +u.user_id == +user.user_id)) throw new Error("error validating user input")
-            if (!(user instanceof User)) {
-                let tusers = users.data.filter(x => x.uid === +user.uid);
-                if (tusers.length === 1) {
-                    user = tusers[0];
-                } else {
-                    tusers = users.data.filter(x => x.user_id === String(user));
-                    if (tusers.length === 1) {
-                        user = tusers[0];
-                    } else {
-                        throw new Error("Can't find user");
-                    }
-                }
-            }
-            
-            if (fingers instanceof Finger) {
-                fingers = [fingers];
-            }
-
-            let fpack = Buffer.alloc(0);
-            let table = Buffer.alloc(0);
-            const fnum = 0x10;
-            let tstart = 0;
-            
-            for (const finger of fingers) {
-                const tfp = finger.repackOnly();
-                const tableEntry = Buffer.alloc(11); // b=1, H=2, b=1, I=4 => 1+2+1+4=8? Wait, bHbI is 1+2+1+4=8 bytes
-                tableEntry.writeInt8(2, 0);
-                tableEntry.writeUInt16LE(user.uid, 1);
-                tableEntry.writeInt8(fnum + finger.fid, 3);
-                tableEntry.writeUInt32LE(tstart, 4);
-                
-                table = Buffer.concat([table, tableEntry]);
-                tstart += tfp.length;
-                fpack = Buffer.concat([fpack, tfp]);
-            }
-            
-            let upack;
-            if (this.userPacketSize === 28) {
-                upack = user.repack29();
-            } else {
-                upack = user.repack73();
-            }
-            
-            const head = Buffer.alloc(12); // III = 3*4 bytes
-            head.writeUInt32LE(upack.length, 0);
-            head.writeUInt32LE(table.length, 4);
-            head.writeUInt32LE(fpack.length, 8);
-            
-            const packet = Buffer.concat([head, upack, table, fpack]);
-            const bufferResponse = await this.sendWithBuffer(packet);
-            const command = 110;
-            const commandString = Buffer.alloc(8); // <IHH = I(4) + H(2) + H(2) = 8 bytes
-            commandString.writeUInt32LE(12, 0);
-            commandString.writeUInt16LE(0, 4);
-            commandString.writeUInt16LE(8, 6);
-            
-            const cmdResponse = await this.executeCmd(command, commandString);
-
-            if(this.verbose) console.log("finally bulk save user templates: \n", cmdResponse.readUInt16LE(0))
-
-        } catch (error) {
-            throw error
-        } finally {
-            await this.refreshData();
-            await this.enableDevice()
-        }
+    async saveUserTemplate(user: string, fingers: Finger[] = []) {
+        return await this._userService.saveTemplates(user, fingers);
+    }
+    /** Delete finger templates
+     * @warn WARNING: if no params are provided, deletes ALL!
+     * @param {number} uid the internal user id in device
+     * @param {number} fid the finger id which is a number between 0 and 9
+     */
+    async deleteFinger(uid?: number, fid?: number) {
+        return await this._userService.deleteFinger(uid, fid);
     }
 
-    async deleteFinger(uid: number, fid: number) {
-        try {
-            const buf = Buffer.alloc(4)
-            buf.writeUInt16LE(uid,0)
-            buf.writeUint16LE(fid,2)
-            const reply = await this.executeCmd(COMMANDS.CMD_DELETE_USERTEMP, buf)
-            return !!reply
-        } catch (error) {
-            throw new Error("Can't save utemp");
-        } finally {
-            await this.refreshData()
-        }
+    async uploadFingerTemplate(user_id: string, fp_template: string, fid: number, valid: number) {
+        return await this._userService.uploadFingerTemplate(user_id, fp_template, fid, valid)
     }
 
     async enrollUser(uid: number , tempId: number, userId: string = '') {
-        let done = false;
-        try {
-            //validate user exists
-            const users = await this.getUsers() as {data: User[]};
-            const filteredUsers = users.data.filter(x => x.uid === uid);
-            if (filteredUsers.length >= 1) {
-                userId = filteredUsers[0].user_id;
-            } else {
-                throw new Error("user not found");
-            }
-
-            const userBuf = Buffer.alloc(24);
-            userBuf.write(userId.toString(), 0, 24, 'ascii');
-            let commandString = Buffer.concat([
-                userBuf,
-                Buffer.from([tempId, 1])
-            ]);
-        
-            const cancel = await this.cancelCapture();
-
-            const cmdResponse = await this.executeCmd(COMMANDS.CMD_STARTENROLL, commandString);
-
-            this.timeout = 60000; // 60 seconds timeout
-            let attempts = 3;
-        
-            while (attempts > 0) {
-                if (this.verbose) console.log(`A:${attempts} esperando primer regevent`);
-                
-                let dataRecv = await this.readSocket(17)
-                await this.ackOk();
-        
-                if (dataRecv.length > 16) {
-                    const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
-                    const res = padded.readUInt16LE(16);
-                    if (this.verbose) console.log(`res ${res}`);
-                    if (res === 0 || res === 6 || res === 4) {
-                        if (this.verbose) console.log("posible timeout o reg Fallido");
-                        break;
-                    }
-                }
-                if (this.verbose) console.log(`A:${attempts} esperando 2do regevent`);
-
-                dataRecv = await this.readSocket(17)
-                await this.ackOk();
-                if (this.verbose) console.log(dataRecv);
-        
-                if (dataRecv.length > 8) {
-                    const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
-                    const res = padded.readUInt16LE(16);
-                    if (this.verbose) console.log(`res ${res}`);
-                    if (res === 6 || res === 4) {
-                        if (this.verbose) console.log("posible timeout o reg Fallido");
-                        break;
-                    } else if (res === 0x64) {
-                        if (this.verbose) console.log("ok, continue?");
-                        attempts--;
-                    }
-                }
-            }
-        
-            if (attempts === 0) {
-                const dataRecv = await this.readSocket(17);
-                await this.ackOk();
-                if (this.verbose) console.log(dataRecv.toString('hex'));
-        
-                const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
-                let res = padded.readUInt16LE(16);
-        
-                if (this.verbose) console.log(`res ${res}`);
-                if (res === 5) {
-                    if (this.verbose) console.log("finger duplicate");
-                }
-                if (res === 6 || res === 4) {
-                    if (this.verbose) console.log("posible timeout");
-                }
-                if (res === 0) {
-                    const size = padded.readUInt16LE(10);
-                    const pos = padded.readUInt16LE(12);
-                    if (this.verbose) console.log(`enroll ok ${size} ${pos}`);
-                    done = true;
-                }
-            }
-        
-            //this.__sock.setTimeout(this.__timeout);
-            await this.regEvent(0); // TODO: test
-            return done;
-        } catch (error) {
-            throw error
-        } finally {
-            await this.cancelCapture();
-            await this.verifyUser(undefined);
-        }
+        return await this._userService.enrollInfo(uid, tempId);
     }
 
     async readSocket(length: number, cb=null): Promise<any> {
@@ -1612,18 +1331,7 @@ export class ZTCP {
     }
 
     async verifyUser(uid: number){
-        try {
-            let command_string = '' as string | Buffer
-            if (uid) {
-                command_string = Buffer.alloc(4)
-                command_string.writeUInt32LE(uid,0)
-            }
-            const reply = await this.executeCmd(COMMANDS.CMD_STARTVERIFY, command_string)
-            if (this.verbose) console.log(reply.readUInt16LE(0))
-            return !!reply
-        } catch (error) {
-            console.error(error)
-        }
+        return this._userService.verify(uid)
     }
     async restartDevice(){
         try {

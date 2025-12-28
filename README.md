@@ -62,6 +62,24 @@ enrollUser: receives a user `user_id` and finger ID `fid` where `0 <= fid <= 9`
 ```js
 await zkInstance.enrollUser(50,5)
 ```
+
+Get a user single finger template
+```js
+const data = await zkInstance.getUserTemplate(
+    "144", // user id/pin
+    1 // finger index
+)
+```
+
+Upload a user single finger template
+```js
+const uploaded = await zkInstance.uploadFingerTemplate(
+    "144", // user id/pin
+    "this_is_a_very_long_string", // finger template in Base64 string 
+    1, // finger id/index
+    1 // finger flag 
+)
+```
 delete template. receives user id `uid` and finger id where `0 <= fid <= 9`
 ```js
 await zkInstance.deleteTemplate(50,5)
