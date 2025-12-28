@@ -33,11 +33,11 @@ describe('Zkteco Template Management Tests', () => {
         // Clean up test user if exists
         usersData = await zkInstance.getUsers();
         if (usersData.data.some(u => u.uid === TEST_UID)) {
-            await zkInstance.deleteUser(TEST_UID);
+            await zkInstance.deleteUser(TEST_USERID);
         }
 
         // Create test user
-        await zkInstance.setUser(TEST_UID, TEST_USERID, TEST_NAME, TEST_PASSWORD);
+        await zkInstance.setUser(TEST_USERID, TEST_NAME, TEST_PASSWORD);
 
     });
 
@@ -46,7 +46,7 @@ describe('Zkteco Template Management Tests', () => {
             // Clean up test user
             const currentUsers = await zkInstance.getUsers();
             if (Array.isArray(currentUsers.data) && currentUsers.data.some(u => u.uid === TEST_UID)) {
-                await zkInstance.deleteUser(TEST_UID);
+                await zkInstance.deleteUser(TEST_USERID);
             }
             
             // Disconnect
@@ -101,7 +101,7 @@ describe('Zkteco Template Management Tests', () => {
     });
 
     test('should can delete a finger template', async () => {
-        const deleted = await zkInstance.deleteFinger(TEST_UID, someoneTemplates[0].fid)
+        const deleted = await zkInstance.deleteFinger(TEST_USERID, someoneTemplates[0].fid)
         expect(deleted).toBeTruthy();
     })
 
@@ -111,7 +111,7 @@ describe('Zkteco Template Management Tests', () => {
         const uploaded = await zkInstance.uploadFingerTemplate(TEST_USERID,fingerTemplateBase64, baseTemp.fid, baseTemp.valid)
         expect(uploaded).toBeTruthy()
 
-        const getTemp = await zkInstance.getUserTemplate(TEST_UID, baseTemp.fid)
+        const getTemp = await zkInstance.getUserTemplate(TEST_USERID, baseTemp.fid)
         expect(getTemp).toEqual(baseTemp.template)
     })
 

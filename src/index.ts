@@ -147,7 +147,7 @@ export default class Zklib {
 
     async getUsers(): Promise<{ data: User[] | UserData28[]}> {
         return this.functionWrapper(
-            () => this.ztcp.getUsers(),
+            () => this.ztcp._userService.getUsers(),
             () => this.zudp.getUsers(),
             'GET_USERS'
         );
@@ -280,25 +280,34 @@ export default class Zklib {
             'GET_FIRMWARE'
         );
     }
-
+    /** Update or create a user if user id/pin not exists
+     * @param user_id {string} user id/pin for customer
+     * @param name {string} user name
+     * @param password {string} user password
+     * @param role {number} role/privilege id number
+     * @param cardno {number} card number/id
+     */
     async setUser(
-        uid: number,
-        userid: string,
+        user_id: string,
         name: string,
         password: string,
         role: number = 0,
         cardno: number = 0
     ): Promise<boolean> {
         return this.functionWrapper(
-            () => this.ztcp.setUser(uid, userid, name, password, role, cardno),
+            () => this.ztcp._userService.setUser(user_id, name, password, role, cardno),
             async () => { throw new Error('UDP set user not supported'); },
             'SET_USER'
         );
     }
 
-    async deleteUser(uid: number): Promise<boolean> {
+    /**
+     * Delete user by a given user id/pin
+     * @param user_id {string}
+     */
+    async deleteUser(user_id: string): Promise<boolean> {
         return this.functionWrapper(
-            () => this.ztcp.deleteUser(uid),
+            () => this.ztcp._userService.DeleteUser(user_id),
             async () => { throw new Error('UDP delete user not supported'); },
             'DELETE_USER'
         );
@@ -338,12 +347,12 @@ export default class Zklib {
 
     /**
      * Get a user template for a given user id/pin and finger id
-     * @param uid
-     * @param fid
+     * @param user_id {string} user id/pin
+     * @param fid {number} finger index
      */
-    async getUserTemplate(uid: number, fid: number) {
+    async getUserTemplate(user_id: string, fid: number) {
         return await this.functionWrapper(
-            async () => await this.ztcp.getUserTemplate(uid, fid),
+            async () => await this.ztcp._userService.DownloadFp(user_id, fid),
             async () => { throw new Error('UDP get user template not implemented'); },
             'GET_USER_TEMPLATE'
         );
@@ -358,7 +367,7 @@ export default class Zklib {
      */
     async uploadFingerTemplate(user_id: string, fingerTemplate: string, fid: number, fp_valid: number){
         return await this.functionWrapper(
-            async () => await this.ztcp.uploadFingerTemplate(user_id, fingerTemplate, fid, fp_valid),
+            async () => await this.ztcp._userService.uploadFingerTemplate(user_id, fingerTemplate, fid, fp_valid),
             async () => { throw new Error('UDP get user template not implemented'); },
             'UPLOAD_USER_TEMPLATE'
         );
@@ -371,35 +380,43 @@ export default class Zklib {
      */
     async saveUserTemplate(user_id: string, fingers: Finger[] = []): Promise<void> {
         return await this.functionWrapper(
-            async () => await this.ztcp.saveUserTemplate(user_id, fingers),
+            async () => await this.ztcp._userService.saveTemplates(user_id, fingers),
             async () => { throw new Error('UDP save user template not supported'); },
             'SAVE_USER_TEMPLATE'
         );
     }
 
-    async deleteFinger(uid: number, fid: number): Promise<boolean> {
+    /**
+     * Delete a single finger template by user id and finger index
+     * @param user_id {string} user id/pin for customer
+     * @param fid {number} finger index
+     */
+    async deleteFinger(user_id?: string, fid?: number): Promise<boolean> {
         if (fid > 9 || 0 > fid) throw new Error("fid params out of index")
-        if (uid > 3000 || uid < 1) throw new Error("fid params out of index")
         return this.functionWrapper(
-            () => this.ztcp.deleteFinger(uid, fid),
+            () => this.ztcp._userService.deleteFinger(user_id, fid),
             async () => { throw new Error('UDP delete finger not supported'); },
             'DELETE_FINGER'
         );
     }
 
-    async enrollUser(uid: number, temp_id: number, user_id: string): Promise<boolean> {
+    /**
+     * Start to enroll a finger template
+     * @param user_id {string} user id/pin for customer
+     * @param temp_id {number} finger index
+     */
+    async enrollUser(user_id: string, temp_id: number): Promise<boolean> {
         if (temp_id < 0 || temp_id > 9) throw new Error("temp_id out of range 0-9")
-        if (uid < 1 || uid > 3000) throw new Error("uid out of range 1-3000")
         return this.functionWrapper(
-            () => this.ztcp.enrollUser(uid, temp_id, user_id),
+            () => this.ztcp._userService.enrollInfo(user_id, temp_id),
             async () => { throw new Error('UDP enroll user not supported'); },
             'ENROLL_USER'
         );
     }
 
-    async verifyUser(uid: number): Promise<boolean> {
+    async verifyUser(user_id: string): Promise<boolean> {
         return this.functionWrapper(
-            () => this.ztcp.verifyUser(uid),
+            () => this.ztcp._userService.verify(user_id),
             async () => { throw new Error('UDP verify user not supported'); },
             'VERIFY_USER'
         );

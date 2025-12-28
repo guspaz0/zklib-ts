@@ -487,13 +487,6 @@ export class ZTCP {
             }
         })
     }
-    /**
-     *  reject error when starting request data
-     *  @return {Record<string, User[] | Error>} when receiving requested data
-     */
-    async getUsers(): Promise<{data: User[]}> {
-        return { data: await this._userService.getUsers() }
-    }
 
     /**
      *
@@ -868,11 +861,10 @@ export class ZTCP {
             const data = await this.executeCmd(COMMANDS.CMD_OPTIONS_RRQ, keyword);
 
             // Extract and format the PIN information from the response data
-                          // Remove null characters
             return data.slice(8)            // Skip the first 8 bytes (header)
                 .toString('ascii')              // Convert buffer to ASCII string
                 .replace(`${keyword}=`, '')    // Remove the keyword prefix
-                .replace(/\u0000/g, '');
+                .replace(/\u0000/g, ''); // Remove null characters 0x00
         } catch (err) {
             // Log the error for debugging
             console.error('Error getting PIN:', err);
@@ -967,7 +959,6 @@ export class ZTCP {
         }
     }
 
-
     async setTime(tm: Date | string) {
         try {
             // Validate the input time
@@ -996,7 +987,6 @@ export class ZTCP {
         }
     }
 
-
     async voiceTest() {
         try {
             // Define the command data for the voice test
@@ -1009,60 +999,6 @@ export class ZTCP {
 
             // Re-throw the error to be handled by the caller
             throw err;
-        }
-    }
-
-
-    async setUser(uid: number, userid: string, name: string, password: string, role: number = 0, cardno: number = 0) {
-        try {
-            // Validate input parameters
-            if (
-                uid <= 0 || uid > 3000 ||
-                userid.length > 9 ||
-                name.length > 24 ||
-                password.length > 8 ||
-                typeof role !== 'number' ||
-                cardno.toString().length > 10
-            ) {
-                throw new Error('Invalid input parameters');
-            }
-
-            // Allocate and initialize the buffer
-            const commandBuffer = Buffer.alloc(72);
-
-            // Fill the buffer with user data
-            commandBuffer.writeUInt16LE(uid, 0);
-            commandBuffer.writeUInt16LE(role, 2);
-            commandBuffer.write(password.padEnd(8, '\0'), 3, 8); // Ensure password is 8 bytes
-            commandBuffer.write(name.padEnd(24, '\0'), 11, 24); // Ensure name is 24 bytes
-            commandBuffer.writeUInt16LE(cardno, 35);
-            commandBuffer.writeUInt32LE(0, 40); // Placeholder or reserved field
-            commandBuffer.write(userid.padEnd(9, '\0'), 48, 9); // Ensure userid is 9 bytes
-
-            // Send the command and return the result
-            const created = await this.executeCmd(COMMANDS.CMD_USER_WRQ, commandBuffer);
-            return !!created
-
-        } catch (err) {
-            // Log error details for debugging
-            console.error('Error setting user:', err);
-
-            // Re-throw error for upstream handling
-            throw err;
-        }
-    }
-
-    async deleteUser(uid: number) {
-        return await this._userService.DeleteUser(uid);
-    }
-
-    async getUserTemplate(uid: number, fid: number) {
-        try {
-            return await this._userService.DownloadFp(uid, fid);
-        } catch (err) {
-            throw err
-        }  finally {
-            await this.refreshData()
         }
     }
 
@@ -1234,31 +1170,6 @@ export class ZTCP {
             throw new ZkError(e,COMMANDS.CMD_DATA,this.ip);
         }
     }
-    /**
-     * save user and template
-     * 
-     * @param {string} user - user_id for customer
-     * @param {Finger[]} fingers - Array of finger class. `0 <= index <= 9`
-     */
-    async saveUserTemplate(user: string, fingers: Finger[] = []) {
-        return await this._userService.saveTemplates(user, fingers);
-    }
-    /** Delete finger templates
-     * @warn WARNING: if no params are provided, deletes ALL!
-     * @param {number} uid the internal user id in device
-     * @param {number} fid the finger id which is a number between 0 and 9
-     */
-    async deleteFinger(uid?: number, fid?: number) {
-        return await this._userService.deleteFinger(uid, fid);
-    }
-
-    async uploadFingerTemplate(user_id: string, fp_template: string, fid: number, valid: number) {
-        return await this._userService.uploadFingerTemplate(user_id, fp_template, fid, valid)
-    }
-
-    async enrollUser(uid: number , tempId: number, userId: string = '') {
-        return await this._userService.enrollInfo(uid, tempId);
-    }
 
     async readSocket(length: number, cb=null): Promise<any> {
         let replyBufer = Buffer.from([])
@@ -1312,15 +1223,6 @@ export class ZTCP {
         }
     }
 
-    async ackOk(){
-        try {
-            const buf = createTCPHeader(COMMANDS.CMD_ACK_OK, this.sessionId, Constants.USHRT_MAX-1, Buffer.from([]))
-            this.socket.write(buf)
-        } catch (e) {
-            throw new ZkError(e,COMMANDS.CMD_ACK_OK, this.ip)
-        }
-    }
-
     async cancelCapture(){
         try {
             const reply = await this.executeCmd(COMMANDS.CMD_CANCELCAPTURE,'')
@@ -1330,9 +1232,6 @@ export class ZTCP {
         }
     }
 
-    async verifyUser(uid: number){
-        return this._userService.verify(uid)
-    }
     async restartDevice(){
         try {
             await this.executeCmd(COMMANDS.CMD_RESTART,'')

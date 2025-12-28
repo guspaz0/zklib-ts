@@ -64,7 +64,7 @@ describe('Zkteco Device Integration Tests', () => {
             // if test user already exists, then skip create method
             created = usersResponse.data.some(user => user.user_id == testUid.toString())
             if (!created) {
-                created = await zkInstance.setUser(testUid, testUid.toString(), testUsername, '123456');
+                created = await zkInstance.setUser(testUid.toString(), testUsername, '123456');
             }
             
             // Verify user exists
@@ -75,7 +75,7 @@ describe('Zkteco Device Integration Tests', () => {
                 expect(createdUser).toBeDefined();
                 expect(createdUser?.name).toBe(testUsername);
                 // Delete user
-                await zkInstance.deleteUser(testUid);
+                await zkInstance.deleteUser(testUid.toString());
                 // Verify user deleted
                 const usersAfterDelete = await zkInstance.getUsers();
                 expect(usersAfterDelete.data.some(user => user.user_id === testUid.toString())).toBe(false);

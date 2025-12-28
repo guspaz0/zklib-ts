@@ -1,8 +1,9 @@
 import {User} from "../models/User";
 import {ZTCP} from "../ztcp";
 import {createTCPHeader, decodeTCPHeader, decodeUserData72} from "../helper/utils";
-import {COMMANDS, DISCOVERED_CMD, REQUEST_DATA} from "../helper/command";
+import {COMMANDS, Constants, DISCOVERED_CMD, REQUEST_DATA} from "../helper/command";
 import {Finger} from "../models/Finger";
+import {ZkError} from "../exceptions/handler";
 
 export class UserService {
     _zkTcp: ZTCP;
@@ -12,18 +13,21 @@ export class UserService {
         this._zkTcp = zkTcp;
     }
 
-    getUserByUserId(user_id: string) {
+    async getUserByUserId(user_id: string) {
+        if (!this._users) {
+            await this.getUsers()
+        }
         if (this._users.has(String(user_id))) {
             return this._users.get(String(user_id))
         }
-        return null;
+        else throw new Error("user_id not exists");
     }
 
-    async getUsers(): Promise<User[]> {
+    async getUsers() {
         try {
             // Free any existing buffer data to prepare for a new request
             if (this._users) {
-                return Array.from(this._users.values())
+                return { data: Array.from(this._users.values()) }
             } else {
                 this._users = new Map([])
             }
@@ -60,7 +64,7 @@ export class UserService {
             }
 
             // Return the list of users
-            return users;
+            return { data: users };
 
         } catch (err) {
             // Log the error for debugging
@@ -70,18 +74,61 @@ export class UserService {
         }
     }
 
-    async DeleteUser(uid: number) {
+    async setUser(user_id: string, name: string, password: string, role: number = 0, cardno: number = 0) {
+        let user: User;
         try {
-            // Validate input parameter
-            if (uid <= 0 || uid > 3000) {
-                throw new Error('Invalid UID: must be between 1 and 3000');
+            user = await this.getUserByUserId(user_id);
+        } catch (err) {
+            if (err.message.includes("user_id not exists")) {
+                user.uid = Math.max(...Array.from(this._users.values()).map(usr => usr.uid)) + 1
+                this._users.set(user_id, user)
+            }
+        }
+        try {
+            // Validate input parameters
+            if (
+                user_id.length > 9 ||
+                name.length > 24 ||
+                password.length > 8 ||
+                typeof role !== 'number' ||
+                cardno.toString().length > 10
+            ) {
+                throw new Error('Invalid input parameters');
             }
 
             // Allocate and initialize the buffer
             const commandBuffer = Buffer.alloc(72);
 
+            // Fill the buffer with user data
+            commandBuffer.writeUInt16LE(user.uid, 0);
+            commandBuffer.writeUInt16LE(role, 2);
+            commandBuffer.write(password.padEnd(8, '\0'), 3, 8); // Ensure password is 8 bytes
+            commandBuffer.write(name.padEnd(24, '\0'), 11, 24); // Ensure name is 24 bytes
+            commandBuffer.writeUInt16LE(cardno, 35);
+            commandBuffer.writeUInt32LE(0, 40); // Placeholder or reserved field
+            commandBuffer.write(user_id.padEnd(9, '\0'), 48, 9); // Ensure userid is 9 bytes
+
+            // Send the command and return the result
+            const created = await this._zkTcp.executeCmd(COMMANDS.CMD_USER_WRQ, commandBuffer);
+            return !!created
+
+        } catch (err) {
+            // Log error details for debugging
+            console.error('Error setting user:', err);
+
+            // Re-throw error for upstream handling
+            throw err;
+        }
+    }
+
+    async DeleteUser(user_id: string) {
+        try {
+            const user = await this.getUserByUserId(user_id);
+            // Allocate and initialize the buffer
+            const commandBuffer = Buffer.alloc(72);
+
             // Write UID to the buffer
-            commandBuffer.writeUInt16LE(uid, 0);
+            commandBuffer.writeUInt16LE(user.uid, 0);
 
             // Send the delete command and return the result
             const deleted = await this._zkTcp.executeCmd(COMMANDS.CMD_DELETE_USER, commandBuffer);
@@ -137,85 +184,91 @@ export class UserService {
         }
     }
 
-    async DownloadFp(uid: number, fid: number): Promise<Buffer> {
-        if (0 > fid || fid > 9)  throw new Error('fid must be between 0 and 9')
-        // Allocate and initialize the buffer
-        const data = Buffer.alloc(3);
+    async DownloadFp(user_id: string, fid: number): Promise<Buffer> {
+        try {
+            const user = await this.getUserByUserId(user_id);
+            if (0 > fid || fid > 9)  throw new Error('fid must be between 0 and 9')
+            // Allocate and initialize the buffer
+            const data = Buffer.alloc(3);
+            // Fill the buffer with user data
+            data.writeUInt16LE(user.uid, 0);
+            data.writeUIntLE(fid, 2,1);
 
-        // Fill the buffer with user data
-        data.writeUInt16LE(uid, 0);
-        data.writeUIntLE(fid, 2,1);
-
-        this._zkTcp.replyId++;
-        const packet = createTCPHeader(COMMANDS.CMD_USERTEMP_RRQ, this._zkTcp.sessionId, this._zkTcp.replyId, data)
-        let fingerSize : number = 0;
-        let fingerTemplate = Buffer.from([])
-        return await new Promise((resolve, reject) => {
-            let timeout: NodeJS.Timeout;
-            const cleanup = () => {
-                if (this._zkTcp.socket) {
-                    this._zkTcp.socket.removeListener('data', receiveData);
-                }
-                if (timeout) clearTimeout(timeout);
-            };
-            let timer = () => setTimeout(() => {
-                cleanup()
-                reject(new Error('Time Out, Could not retrieve data'))
-            }, this._zkTcp.timeout)
-            const receiveData = (data: Buffer): Buffer => {
-                timeout = timer()
-                if (data.length === 0) return;
-                try {
-                    if (data.length == 0) return
-                    const headers = decodeTCPHeader(data);
-                    switch (headers.commandId) {
-                        case DISCOVERED_CMD.FID_NOT_FOUND:
-                            throw new Error('Could not retrieve data. maybe finger id not exists?')
-                        case COMMANDS.CMD_PREPARE_DATA:
-                            fingerSize = data.readUIntLE(16,2)
-                            break
-                        case COMMANDS.CMD_DATA:
-                            // A single 'data' event might contain multiple TCP packets combined by the OS
-                            // in this method, is possible to get CMD_DATA and CMD_ACK_OK in the same event,
-                            // so It's important to split data received for remove CMD_ACK_OK headers
-                            fingerTemplate = Buffer.concat([fingerTemplate, data.subarray(16, fingerSize+10)]);
-                            // @ts-ignore
-                            resolve(fingerTemplate);
-                            break;
-
-                        case COMMANDS.CMD_ACK_OK:
-                            cleanup();
-                            // @ts-ignore
-                            resolve(fingerTemplate);
-                            return;
-                        default:
-                            // If it's not a recognized command but has data, it might be raw template data
-                            if (headers.commandId > 2000 && headers.commandId < 3000) {
-                                // Likely another ACK or system msg
-                            } else {
-                                fingerTemplate = Buffer.concat([fingerTemplate, data]);
-                            }
-                            break;
+            this._zkTcp.replyId++;
+            const packet = createTCPHeader(COMMANDS.CMD_USERTEMP_RRQ, this._zkTcp.sessionId, this._zkTcp.replyId, data)
+            let fingerSize : number = 0;
+            let fingerTemplate = Buffer.from([])
+            return await new Promise((resolve, reject) => {
+                let timeout: NodeJS.Timeout;
+                const cleanup = () => {
+                    if (this._zkTcp.socket) {
+                        this._zkTcp.socket.removeListener('data', receiveData);
                     }
-                    clearTimeout(timeout)
-                } catch (e) {
-                    cleanup();
-                    reject(e);
-                }
-            };
+                    if (timeout) clearTimeout(timeout);
+                };
+                let timer = () => setTimeout(() => {
+                    cleanup()
+                    reject(new Error('Time Out, Could not retrieve data'))
+                }, this._zkTcp.timeout)
+                const receiveData = (data: Buffer): Buffer => {
+                    timeout = timer()
+                    if (data.length === 0) return;
+                    try {
+                        if (data.length == 0) return
+                        const headers = decodeTCPHeader(data);
+                        switch (headers.commandId) {
+                            case DISCOVERED_CMD.FID_NOT_FOUND:
+                                throw new Error('Could not retrieve data. maybe finger id not exists?')
+                            case COMMANDS.CMD_PREPARE_DATA:
+                                fingerSize = data.readUIntLE(16,2)
+                                break
+                            case COMMANDS.CMD_DATA:
+                                // A single 'data' event might contain multiple TCP packets combined by the OS
+                                // in this method, is possible to get CMD_DATA and CMD_ACK_OK in the same event,
+                                // so It's important to split data received for remove CMD_ACK_OK headers
+                                fingerTemplate = Buffer.concat([fingerTemplate, data.subarray(16, fingerSize+10)]);
+                                // @ts-ignore
+                                resolve(fingerTemplate);
+                                break;
 
-            if (this._zkTcp.socket) {
-                this._zkTcp.socket.on('data', receiveData);
-                this._zkTcp.socket.write(packet, (err) => {
-                    if (err) {
+                            case COMMANDS.CMD_ACK_OK:
+                                cleanup();
+                                // @ts-ignore
+                                resolve(fingerTemplate);
+                                return;
+                            default:
+                                // If it's not a recognized command but has data, it might be raw template data
+                                if (headers.commandId > 2000 && headers.commandId < 3000) {
+                                    // Likely another ACK or system msg
+                                } else {
+                                    fingerTemplate = Buffer.concat([fingerTemplate, data]);
+                                }
+                                break;
+                        }
+                        clearTimeout(timeout)
+                    } catch (e) {
                         cleanup();
-                        reject(err);
+                        reject(e);
                     }
-                });
-            } else {
-                reject(new Error('Socket not initialized'));
-            }
-        });
+                };
+
+                if (this._zkTcp.socket) {
+                    this._zkTcp.socket.on('data', receiveData);
+                    this._zkTcp.socket.write(packet, (err) => {
+                        if (err) {
+                            cleanup();
+                            reject(err);
+                        }
+                    });
+                } else {
+                    reject(new Error('Socket not initialized'));
+                }
+            });
+        } catch (err) {
+            throw err
+        }  finally {
+            await this._zkTcp.refreshData()
+        }
     }
 
     /**
@@ -227,12 +280,8 @@ export class UserService {
         if (fingers.length > 9 || fingers.length == 0) throw new Error("maximum finger length is 10 and can't be empty")
         try {
             await this._zkTcp.disableDevice()
-            if (!this._users) {
-                await this.getUsers()
-            }
             // check users exists
-            if (!this._users.has(user_id)) throw new Error("user_id not exists")
-            const user = this.getUserByUserId(user_id)
+            const user = await this.getUserByUserId(user_id)
 
 
             let fpack = Buffer.alloc(0);
@@ -285,10 +334,13 @@ export class UserService {
         }
     }
 
-    async deleteFinger(uid?: number, fid?: number) {
+    async deleteFinger(user_id?: string, fid?: number) {
         try {
+            if (!this._users.has(user_id)) throw new Error("user_id not exists")
+            const user = await this.getUserByUserId(user_id)
+
             const buf = Buffer.alloc(4)
-            buf.writeUInt16LE(uid ? uid : 0,0)
+            buf.writeUInt16LE(user_id ? user.uid : 0,0)
             buf.writeUint16LE(fid ? fid : 0,2)
             const reply = await this._zkTcp.executeCmd(COMMANDS.CMD_DELETE_USERTEMP, buf)
             return !!reply
@@ -299,15 +351,23 @@ export class UserService {
         }
     }
 
-    async enrollInfo(uid: number , tempId: number, userId: string = '') {
+    async enrollInfo(user_id: string , tempId: number) {
         let done = false;
         try {
             const userBuf = Buffer.alloc(24);
-            userBuf.write(userId.toString(), 0, 24, 'ascii');
+            userBuf.write(user_id, 0, 24, 'ascii');
             let commandString = Buffer.concat([
                 userBuf,
                 Buffer.from([tempId, 1])
             ]);
+            const sendAckOk = async () => {
+                try {
+                    const buf = createTCPHeader(COMMANDS.CMD_ACK_OK, this._zkTcp.sessionId, Constants.USHRT_MAX-1, Buffer.from([]))
+                    this._zkTcp.socket.write(buf)
+                } catch (e) {
+                    throw new ZkError(e,COMMANDS.CMD_ACK_OK, this._zkTcp.ip)
+                }
+            }
 
             const cancel = await this._zkTcp.cancelCapture();
 
@@ -320,7 +380,7 @@ export class UserService {
                 if (this._zkTcp.verbose) console.log(`A:${attempts} esperando primer regevent`);
 
                 let dataRecv = await this._zkTcp.readSocket(17)
-                await this._zkTcp.ackOk();
+                await sendAckOk();
 
                 if (dataRecv.length > 16) {
                     const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
@@ -334,7 +394,7 @@ export class UserService {
                 if (this._zkTcp.verbose) console.log(`A:${attempts} esperando 2do regevent`);
 
                 dataRecv = await this._zkTcp.readSocket(17)
-                await this._zkTcp.ackOk();
+                await sendAckOk();
                 if (this._zkTcp.verbose) console.log(dataRecv);
 
                 if (dataRecv.length > 8) {
@@ -353,7 +413,7 @@ export class UserService {
 
             if (attempts === 0) {
                 const dataRecv = await this._zkTcp.readSocket(17);
-                await this._zkTcp.ackOk();
+                await sendAckOk();
                 if (this._zkTcp.verbose) console.log(dataRecv.toString('hex'));
 
                 const padded = Buffer.concat([dataRecv, Buffer.alloc(24 - dataRecv.length)]);
@@ -381,21 +441,21 @@ export class UserService {
             throw error
         } finally {
             await this._zkTcp.cancelCapture();
-            await this._zkTcp.verifyUser(undefined);
+            await this.verify(user_id);
         }
     }
-    async verify(uid: number){
+
+    async verify(user_id: string){
         try {
-            let command_string = '' as string | Buffer
-            if (uid) {
-                command_string = Buffer.alloc(4)
-                command_string.writeUInt32LE(uid,0)
-            }
+            const user = await this.getUserByUserId(user_id);
+            const command_string = Buffer.alloc(4)
+            command_string.writeUInt32LE(user.uid,0)
             const reply = await this._zkTcp.executeCmd(COMMANDS.CMD_STARTVERIFY, command_string)
             if (this._zkTcp.verbose) console.log(reply.readUInt16LE(0))
             return !!reply
         } catch (error) {
             console.error(error)
+            throw error
         }
     }
 
@@ -408,15 +468,13 @@ export class UserService {
      */
     async uploadFingerTemplate(user_id: string, fingerTemplate: string, fid: number, fp_valid: number){
         try {
-            // if (!this._users) await this.getUsers()
-            // if (!this._users.has(user_id)) throw new Error(`user id/pin ${user_id} does not exist`);
             const check_ACK_OK = (buf: Buffer) => {
                 let resp_cmd = initPacket.readUInt16LE(0)
                 if (resp_cmd === COMMANDS.CMD_ACK_OK) return true
                 else throw new Error(`received unexpected command: ${resp_cmd}`);
             }
 
-            const user = { uid: +user_id} // this._users.get(user_id);
+            const user = this._users.get(user_id);
             await this._zkTcp.disableDevice()
             const prep_struct = Buffer.alloc(4);
             const fingerBuffer = Buffer.from(fingerTemplate, 'base64')
