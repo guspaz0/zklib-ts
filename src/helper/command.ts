@@ -180,6 +180,15 @@ export enum COMMANDS {
     EF_VERIFY = 128,
 }
 
+export enum AttendanceState {
+    CHECK_IN  = 0,
+    CHECK_OUT = 1,
+    BREAK_OUT = 2,
+    BREAK_IN  = 3,
+    OT_IN     = 4,
+    OT_OUT    = 5,
+}
+
 export enum DISCOVERED_CMD {
     /** Returned when the Finger id not exists in the user uid, when attempting to download single finger template */
     FID_NOT_FOUND = 4993,

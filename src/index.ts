@@ -4,7 +4,8 @@ import { User } from './models/User';
 import { Finger } from './models/Finger';
 import { ZkError, ERROR_TYPES } from './exceptions/handler';
 import {Attendance} from "./models/Attendance";
-import {RecordData16, UserData28, DeviceInfo, FreeSizes} from "./helper/utils";
+import { RecordData16, UserData28, DeviceInfo, FreeSizes, RealTimeLog } from "./helper/utils";
+import { AttendanceState } from './helper/command';
 
 
 export default class Zklib {
@@ -329,7 +330,7 @@ export default class Zklib {
         );
     }
 
-    async getRealTimeLogs(cb: (log: any) => void): Promise<void> {
+    async getRealTimeLogs(cb: (log: RealTimeLog) => void): Promise<void> {
         return this.functionWrapper(
             () => this.ztcp.getRealTimeLogs(cb),
             () => this.zudp.getRealTimeLogs(cb),
@@ -512,4 +513,5 @@ export default class Zklib {
     }
 }
 
-export type { Attendance, User, Finger, DeviceInfo, Zklib }
+export type { Attendance, User, Finger, DeviceInfo, Zklib, RealTimeLog }
+export { AttendanceState }

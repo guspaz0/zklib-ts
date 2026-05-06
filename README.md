@@ -13,10 +13,10 @@
 
 ## 📋 **Index**
 1. [Installation](#-installation)
-1. [⚙️ Usage](#-usage)
-2. [🛠️ Testing](#-testing)
-3. [🗄️Alternatives](#-alternatives)
-4. [📄 Documentation](#-documentation)
+2. [⚙️ Usage](#-usage)
+3. [🛠️ Testing](#-testing)
+4. [🗄️ Alternatives](#-alternatives)
+5. [📄 Documentation](#-documentation)
 
 
 ## **Installation**
@@ -25,66 +25,112 @@ You must have Node.js ^18 before run the command down below:
 npm i zklib-ts
 ```
 
-## 🛠️ **Usage**
-create a connection. <b>constructor</b> receives `(ip, timeout, inport, port, comm_key) `
+## ⚙️ **Usage**
+
+### Connection
+Constructor receives `(ip, timeout, inport, port, comm_key)`. `createSocket` auto-selects TCP or UDP.
 ```js
 import Zklib from 'zklib-ts'
 
-const zkInstance = new Zklib("10.0.0.10",10000,10000,4370,0)
+const zk = new Zklib("10.0.0.10", 10000, 10000, 4370, 0)
 
-await zkInstance.createSocket()
-
-```
-Get <b>all</b> users:
-```js
-
-const users = await zkInstance.getUsers()
-
-```
-Get <b>all</b> attendances:
-```js
-
-const attendances = await zkInstance.getAttendances()
-
-```
-get All templates
-```js
-const templates = await zkInstance.getTemplates() 
+await zk.createSocket()
+await zk.disconnect()
 ```
 
-save user templates. receives a `User` instance class and an array of `Finger` class. currently only save one template per call.
+### User Management
 ```js
-const templates = await zkInstance.saveUserTemplate(user, templates) 
-```
+const { data: users } = await zk.getUsers()
 
-
-enrollUser: receives a user `user_id` and finger ID `fid` where `0 <= fid <= 9`
-```js
-await zkInstance.enrollUser(50,5)
-```
-
-Get a user single finger template
-```js
-const data = await zkInstance.getUserTemplate(
-    "144", // user id/pin
-    1 // finger index
+// create or update a user
+await zk.setUser(
+    "144",   // user id/pin
+    "John",  // name
+    "1234",  // password
+    0,       // role (0 = normal user)
+    0        // card number
 )
+
+await zk.deleteUser("144")
+await zk.verifyUser("144")
 ```
 
-Upload a user single finger template
+### Attendance
 ```js
-const uploaded = await zkInstance.uploadFingerTemplate(
+const { data: attendances } = await zk.getAttendances()
+
+await zk.getAttendanceSize()  // total stored records count
+await zk.clearAttendanceLog() // delete all attendance records from device
+```
+
+### Realtime Events
+```js
+import Zklib, { AttendanceState } from 'zklib-ts'
+
+await zk.getRealTimeLogs((log) => {
+    console.log(log.user_id)      // user id/pin
+    console.log(log.record_time)  // Date
+    console.log(log.state)        // AttendanceState enum value
+
+    // AttendanceState values:
+    // CHECK_IN  = 0
+    // CHECK_OUT = 1
+    // BREAK_OUT = 2
+    // BREAK_IN  = 3
+    // OT_IN     = 4
+    // OT_OUT    = 5
+})
+```
+
+### Fingerprint Templates
+```js
+const templates = await zk.getTemplates()
+
+const data = await zk.getUserTemplate(
     "144", // user id/pin
-    "this_is_a_very_long_string", // finger template in Base64 string 
-    1, // finger id/index
-    1 // finger flag 
+    1      // finger index (0-9)
 )
+
+const uploaded = await zk.uploadFingerTemplate(
+    "144",                      // user id/pin
+    "this_is_a_very_long_string", // finger template in Base64 string
+    1,                          // finger id/index (0-9)
+    1                           // finger flag (1=valid, 3=duress)
+)
+
+// save user with fingerprint templates
+await zk.saveUserTemplate("144", fingers) // (user_id, Finger[])
+
+// start enroll procedure on device for a given finger index
+await zk.enrollUser("144", 5) // user_id, fid (0-9)
+
+// delete a single finger template
+await zk.deleteFinger("144", 1) // user_id, fid (0-9)
 ```
-delete template. receives user id `uid` and finger id where `0 <= fid <= 9`
+
+### Device Info
 ```js
-await zkInstance.deleteTemplate(50,5)
+await zk.getInfo()          // { userCounts, logCounts, logCapacity }
+await zk.getSizes()         // free space breakdown
+await zk.getTime()          // Date
+await zk.setTime(new Date())
+await zk.getDeviceName()
+await zk.getSerialNumber()
+await zk.getFirmware()
+await zk.getMacAddress()
+await zk.getPlatform()
+await zk.getOS()
+await zk.getVendor()
+await zk.getNetworkParams()
 ```
-<b>Check the Testing section for more functionalities coverage.</b>
+
+### Device Control
+```js
+await zk.disableDevice()   // pause device operations
+await zk.enableDevice()    // resume device operations
+await zk.restartDevice()
+await zk.clearData()       // WARNING: deletes all data on device
+```
 
 ## 🛠️ **Testing**
 

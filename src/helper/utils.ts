@@ -1,4 +1,4 @@
-import {COMMANDS} from './command';
+import { COMMANDS, AttendanceState } from './command';
 import { Constants } from './command';
 import {log} from '../logs/log';
 import {User} from '../models/User';
@@ -27,7 +27,12 @@ export interface RecordData16 {
     ip?: string
 }
 
-export type RealTimeLog = RecordData16;
+export interface RealTimeLog {
+    record_time: Date;
+    user_id: string;
+    ip?: string;
+    state?: AttendanceState;
+}
 
 interface UDPHeader {
     commandId: number;
@@ -216,13 +221,14 @@ export const decodeRecordData16 = (recordData: Buffer): RecordData16 => {
 };
 
 export const decodeRecordRealTimeLog18 = (recordData: Buffer): RealTimeLog => {
-    const user_id = recordData.readUIntLE(8, 1).toString();
+    const user_id     = recordData.readUIntLE(8, 1).toString();
+    const state       = recordData.readUIntLE(11, 1) as AttendanceState;
     const record_time = parseHexToTime(recordData.subarray(12, 18));
-    return { user_id, record_time };
+    return { user_id, record_time, state };
 };
 
 export const decodeRecordRealTimeLog52 = (recordData: Buffer): RealTimeLog => {
-    const payload = removeTcpHeader(recordData);
+    const payload  = removeTcpHeader(recordData);
     const recvData = payload.subarray(8);
 
     const user_id = recvData.slice(0, 9)
@@ -230,9 +236,10 @@ export const decodeRecordRealTimeLog52 = (recordData: Buffer): RealTimeLog => {
         .split('\0')
         .shift() || '';
 
+    const state       = recvData.readUIntLE(25, 1) as AttendanceState;
     const record_time = parseHexToTime(recvData.subarray(26, 26 + 6));
 
-    return { user_id, record_time };
+    return { user_id, record_time, state };
 };
 
 export const decodeUDPHeader = (header: Buffer): UDPHeader => {
