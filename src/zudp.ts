@@ -6,7 +6,7 @@ import {
     decodeUDPHeader,
     exportErrorMessage,
     checkNotEventUDP,
-    authKey, RecordData16, UserData28
+    authKey, RecordData16, UserData28, RealTimeLog
 } from './helper/utils';
 
 import { REQUEST_DATA, COMMANDS } from './helper/command';
@@ -493,7 +493,7 @@ export class ZUDP {
         }
     }
 
-    async getRealTimeLogs(cb: (log: any) => void = () => {}): Promise<void> {
+    async getRealTimeLogs(cb: (log: RealTimeLog) => void = () => {}): Promise<void> {
         this.replyId++;
         const buf = createUDPHeader(COMMANDS.CMD_REG_EVENT, this.sessionId!, this.replyId, REQUEST_DATA.GET_REAL_TIME_EVENT);
 
