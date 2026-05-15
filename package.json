@@ -7,6 +7,23 @@
   "typings": "dist/index",
   "types": "dist/index.d.ts",
   "type": "commonjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./ztcp": {
+      "import": "./dist/ztcp.js",
+      "require": "./dist/ztcp.cjs.js",
+      "types": "./dist/ztcp.d.ts"
+    },
+    "./zudp": {
+      "import": "./dist/zudp.js",
+      "require": "./dist/zudp.cjs.js",
+      "types": "./dist/zudp.d.ts"
+    }
+  },
   "files": [
     "dist/",
     "README.md"

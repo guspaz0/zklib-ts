@@ -3,7 +3,7 @@
   "compileOnSave": true,
   "compilerOptions": {
     "target": "ES2024",
-    "module": "commonjs",
+    "module": "esnext",
     "declaration": true,
     "declarationDir": "./dist",
     "skipLibCheck": true,

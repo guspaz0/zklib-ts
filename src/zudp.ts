@@ -525,5 +525,3 @@ export class ZUDP {
         }
     }
 }
-
-export default ZUDP;
