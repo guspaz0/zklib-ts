@@ -10,4 +10,4 @@ tests/asd.test.ts
 .eslintrc.json
 eslint.config.js
 tsconfig.json
-tsconfig.json
+*.csv
