@@ -17,7 +17,7 @@ export enum COMMANDS {
     CMD_ATTLOG_RRQ = 13,
     /** [0x4E, 0x04] Request to begin session using commkey. */
     CMD_AUTH = 1102,
-    /** Disable normal authentication of users. */
+    /** [0x3e, 0x00] Disable normal authentication of users. */
     CMD_CANCELCAPTURE = 62,
     /** Capture fingerprint picture. */
     CMD_CAPTUREFINGER = 1009,
@@ -114,9 +114,9 @@ export enum COMMANDS {
     CMD_SMS_RRQ = 71,
     /** Upload short message. */
     CMD_SMS_WRQ = 70,
-    /** Start enroll procedure. */
+    /** [0x3d, 0x00] Start enroll procedure. */
     CMD_STARTENROLL = 61,
-    /** Set the machine to authentication state. */
+    /** [0x3c, 0x00] Set the machine to authentication state. */
     CMD_STARTVERIFY = 60,
     /** Query state. */
     CMD_STATE_RRQ = 64,
@@ -160,6 +160,9 @@ export enum COMMANDS {
     CMD_WRITE_LCD = 66,
     /** Write data to Mifare card. */
     CMD_WRITE_MIFARE = 76,
+}
+
+export enum RTEvent {
     /** Triggered alarm. */
     EF_ALARM = 512,
     /** Attendance entry. */
@@ -181,8 +184,12 @@ export enum COMMANDS {
 }
 
 export enum DISCOVERED_CMD {
+    /** [0x7f, 0x13] */
+    UNKNOWN = 4991,
     /** Returned when the Finger id not exists in the user uid, when attempting to download single finger template */
     FID_NOT_FOUND = 4993,
+    /** [0x87, 0x13] i guess is an error reply code, is returned when attempint to read options ~isABCPinEnable and ~T9FunOn */
+    UNKNOWN_OR_NOT_SUPPORTED = 4999,
 }
 
 export type CommandKeys = keyof typeof COMMANDS;

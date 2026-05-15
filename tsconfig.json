@@ -1,26 +1,24 @@
 {
-    "version": "1.6.2",
-    "compileOnSave": true,
-    "compilerOptions": {
-        "target": "ES2024",
-        "module": "es6",
-        "declaration": true,
-        "declarationDir": "./dist",
-        "skipLibCheck": true,
-        "resolveJsonModule": true,
-        "moduleResolution": "bundler",
-        "esModuleInterop": true,
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "allowSyntheticDefaultImports": true,
-        "isolatedModules": true,
-        "outDir": "./dist",
-        "rootDir": "./src"
-    },
-    "include": [
-        "src"
-    ],
-    "exclude": [
-        "node_modules", "dist"
-    ]
+  "version": "1.6.2",
+  "compileOnSave": true,
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "commonjs",
+    "declaration": true,
+    "declarationDir": "./dist",
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "types": ["node"],
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
+

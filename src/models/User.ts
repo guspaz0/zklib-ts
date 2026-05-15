@@ -24,9 +24,9 @@ export class User {
         uid: number,
         name: string,
         privilege: number,
-        password: string = "",
-        group_id: string | number = "",
-        user_id: string = "",
+        password: string = '',
+        group_id: string | number = '',
+        user_id: string = '',
         card: number = 0
     ) {
         this.uid = uid;

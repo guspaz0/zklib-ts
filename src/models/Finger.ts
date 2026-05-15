@@ -4,6 +4,7 @@
 export class Finger {
     uid: number;
     fid: number;
+    /** Flag indicating 0 = invalid | 1 = valid | 3 = duress. if is not initilizaed, default is 1 = valid */
     valid: number;
     template: Buffer;
     size: number;
@@ -16,10 +17,10 @@ export class Finger {
      * @param valid Flag indicating 0 = invalid | 1 = valid | 3 = duress
      * @param template Fingerprint template data buffer
      */
-    constructor(uid: number, fid: number, valid: number, template: Buffer) {
+    constructor(uid: number, fid: number, template: Buffer, valid?: number) {
         this.uid = Number(uid);
         this.fid = Number(fid);
-        this.valid = Number(valid);
+        this.valid = valid ? Number(valid) : 1;
         this.template = template;
         this.size = template.length;
 

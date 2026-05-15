@@ -1,4 +1,4 @@
-import Zklib from "../src";
+import Zklib from '../src';
 
 const DEVICE_IP = process.env.DEVICE_IP as string;
 const DEVICE_PORT = +process.env.DEVICE_PORT as number;
@@ -10,7 +10,7 @@ jest.setTimeout(15000); // 15 seconds timeout for device operations
 
 describe('Zkteco Device Integration Tests', () => {
     let zkInstance: Zklib;
-    const testUsername = `Test_User`;
+    const testUsername = 'Test_User';
     const testUid = 200;
 
     beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('Zkteco Device Integration Tests', () => {
 
     test('should get device information', async () => {
         const info = await zkInstance.getInfo();
-        console.log("Device Info:", info);
+        console.log('Device Info:', info);
         expect(info).toHaveProperty('userCounts');
         expect(info).toHaveProperty('logCounts');
         expect(info).toHaveProperty('logCapacity');
@@ -34,13 +34,13 @@ describe('Zkteco Device Integration Tests', () => {
 
     test('should get device vendor information', async () => {
         const vendor = await zkInstance.getVendor();
-        console.log("Vendor:", vendor);
+        console.log('Vendor:', vendor);
         expect(typeof vendor).toBe('string');
     });
 
     test('should get device time', async () => {
         const deviceTime = await zkInstance.getTime();
-        console.log("Device Time:", deviceTime);
+        console.log('Device Time:', deviceTime);
         expect(deviceTime).toBeInstanceOf(Date);
     });
 
@@ -62,7 +62,7 @@ describe('Zkteco Device Integration Tests', () => {
             const usersResponse = await zkInstance.getUsers();
             let created: boolean;
             // if test user already exists, then skip create method
-            created = usersResponse.data.some(user => user.user_id == testUid.toString())
+            created = usersResponse.data.some(user => user.user_id == testUid.toString());
             if (!created) {
                 created = await zkInstance.setUser(testUid.toString(), testUsername, '123456');
             }
@@ -91,37 +91,37 @@ describe('Zkteco Device Integration Tests', () => {
 
     test('should get device serial number', async () => {
         const serialNo = await zkInstance.getSerialNumber();
-        console.log("Serial Number:", serialNo);
+        console.log('Serial Number:', serialNo);
         expect(typeof serialNo).toBe('string');
     });
 
     test('should get device Network params', async () => {
         const networkParams = await zkInstance.getNetworkParams();
-        console.log("Network Params:", networkParams);
+        console.log('Network Params:', networkParams);
         expect(typeof networkParams).toBe('object');
     });
 
     test('should get device MAC address', async () => {
         const macAddress = await zkInstance.getMacAddress();
-        console.log("MAC Address:", macAddress);
+        console.log('MAC Address:', macAddress);
         expect(typeof macAddress).toBe('string');
     });
 
     test('should get device firmware version', async () => {
         const firmware = await zkInstance.getFirmware();
-        console.log("Firmware:", firmware);
+        console.log('Firmware:', firmware);
         expect(typeof firmware).toBe('string');
-    })
+    });
 
-    test("should get device face function", async ()=> {
+    test('should get device face function', async ()=> {
         const faceFunOn = await zkInstance.getFaceOn();
-        console.log("Face:", faceFunOn);
+        console.log('Face:', faceFunOn);
         expect(typeof faceFunOn).toBe('string');
-    })
+    });
 
-    test("should get device ZKteco FingerPrint version", async ()=> {
+    test('should get device ZKteco FingerPrint version', async ()=> {
         const faceFunOn = await zkInstance.getDeviceVersion();
-        console.log("ZKFP Version:", faceFunOn);
+        console.log('ZKFP Version:', faceFunOn);
         expect(typeof faceFunOn).toBe('string');
-    })
+    });
 });

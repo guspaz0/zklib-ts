@@ -12,8 +12,8 @@ import {
 import { REQUEST_DATA, COMMANDS } from './helper/command';
 import { Constants } from './helper/command';
 import { log } from './logs/log';
-import timeParser from "./helper/time";
-import * as dgram from "node:dgram";
+import timeParser from './helper/time';
+import * as dgram from 'node:dgram';
 
 interface DeviceInfo {
     userCounts: number;
@@ -90,7 +90,7 @@ export class ZUDP {
                 if (reply.readUInt16LE(0) === COMMANDS.CMD_ACK_OK) {
                     return true;
                 } else {
-                    throw new Error("Authentication error");
+                    throw new Error('Authentication error');
                 }
             } else {
                 throw new Error('NO_REPLY_ON_CMD_CONNECT');
@@ -397,7 +397,7 @@ export class ZUDP {
     async freeData(): Promise<boolean> {
         try {
             const resp = await this.executeCmd(COMMANDS.CMD_FREE_DATA, Buffer.alloc(0));
-            return !!resp
+            return !!resp;
         } catch (err) {
             console.error('Error freeing data:', err);
             throw err;
@@ -462,7 +462,7 @@ export class ZUDP {
     async disableDevice(): Promise<boolean> {
         try {
             const resp = await this.executeCmd(COMMANDS.CMD_DISABLEDEVICE, REQUEST_DATA.DISABLE_DEVICE);
-            return !!resp
+            return !!resp;
         } catch (err) {
             console.error('Error disabling device:', err);
             throw err;
@@ -472,7 +472,7 @@ export class ZUDP {
     async enableDevice(): Promise<boolean> {
         try {
             const resp = await this.executeCmd(COMMANDS.CMD_ENABLEDEVICE, Buffer.alloc(0));
-            return !!resp
+            return !!resp;
         } catch (err) {
             console.error('Error enabling device:', err);
             throw err;

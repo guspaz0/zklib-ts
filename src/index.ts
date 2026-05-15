@@ -1,515 +1,599 @@
-import {ZTCP} from './ztcp';
-import {ZUDP} from './zudp';
-import { User } from './models/User';
-import { Finger } from './models/Finger';
-import { ZkError, ERROR_TYPES } from './exceptions/handler';
-import {Attendance} from "./models/Attendance";
-import {RecordData16, UserData28, DeviceInfo, FreeSizes} from "./helper/utils";
-
+import { ZTCP } from "./ztcp";
+import { ZUDP } from "./zudp";
+import { User } from "./models/User";
+import { Finger } from "./models/Finger";
+import { ZkError, ERROR_TYPES } from "./exceptions/handler";
+import { Attendance } from "./models/Attendance";
+import {
+  RecordData16,
+  UserData28,
+  DeviceInfo,
+  FreeSizes,
+} from "./helper/utils";
 
 export default class Zklib {
-    set connectionType(value: "tcp" | "udp" | null) {
-        this._connectionType = value;
-    }
-    private _connectionType: 'tcp' | 'udp' | null = null;
-    public ztcp: ZTCP;
-    public zudp: ZUDP;
-    private interval: NodeJS.Timeout | null = null;
-    private timer: NodeJS.Timeout | null = null;
-    private isBusy: boolean = false;
-    private ip: string;
-    private comm_key: number;
+  set connectionType(value: "tcp" | "udp" | null) {
+    this._connectionType = value;
+  }
+  private _connectionType: "tcp" | "udp" | null = null;
+  public ztcp: ZTCP;
+  public zudp: ZUDP;
+  private interval: NodeJS.Timeout | null = null;
+  private timer: NodeJS.Timeout | null = null;
+  private isBusy: boolean = false;
+  private ip: string;
+  private comm_key: number;
 
-    get connectionType(): "tcp" | "udp" | null {
-        return this._connectionType;
-    }
+  get connectionType(): "tcp" | "udp" | null {
+    return this._connectionType;
+  }
 
-    /**
-     * Creates a new Zkteco device connection instance
-     * @param ip IP address of device
-     * @param port Port number of device
-     * @param timeout Connection timeout in milliseconds
-     * @param inport Required only for UDP connection (default: 10000)
-     * @param comm_key Communication key of device (default: 0)
-     * @param verbose Console log some data
-     */
-    constructor(ip: string, port: number = 4370, timeout: number= 5000, inport: number = 10000, comm_key: number = 0, verbose: boolean = false) {
-        this.ip = ip;
-        this.comm_key = comm_key;
-        this.ztcp = new ZTCP(ip, port, timeout, comm_key, verbose);
-        this.zudp = new ZUDP(ip, port, timeout, inport);
-    }
+  /**
+   * Creates a new Zkteco device connection instance
+   * @param ip IP address of device
+   * @param port Port number of device
+   * @param timeout Connection timeout in milliseconds
+   * @param inport Required only for UDP connection (default: 10000)
+   * @param comm_key Communication key of device (default: 0)
+   * @param verbose Console log some data
+   */
+  constructor(
+    ip: string,
+    port: number = 4370,
+    timeout: number = 5000,
+    inport: number = 10000,
+    comm_key: number = 0,
+    verbose: boolean = false,
+  ) {
+    this.ip = ip;
+    this.comm_key = comm_key;
+    this.ztcp = new ZTCP(ip, port, timeout, comm_key, verbose);
+    this.zudp = new ZUDP(ip, port, timeout, inport);
+  }
 
-    private async functionWrapper<T>(
-        tcpCallback: () => Promise<T>,
-        udpCallback: () => Promise<T>,
-        command: string
-    ): Promise<T> {
-        try {
-            switch (this._connectionType) {
-                case 'tcp':
-                    if (this.ztcp && this.ztcp.socket) {
-                        return await tcpCallback();
-                    } else {
-                        throw new ZkError(
-                            new Error(`TCP socket isn't connected!`),
-                            `[TCP] ${command}`,
-                            this.ip
-                        );
-                    }
-
-                case 'udp':
-                    if (this.zudp && this.zudp.socket) {
-                        return await udpCallback();
-                    } else {
-                        throw new ZkError(
-                            new Error(`UDP socket isn't connected!`),
-                            `[UDP] ${command}`,
-                            this.ip
-                        );
-                    }
-                default:
-                    throw new ZkError(
-                        new Error(`Unsupported connection type or socket isn't connected!`),
-                        '',
-                        this.ip
-                    );
-            }
-        } catch (err) {
+  private async functionWrapper<T>(
+    tcpCallback: () => Promise<T>,
+    udpCallback: () => Promise<T>,
+    command: string,
+  ): Promise<T> {
+    try {
+      switch (this._connectionType) {
+        case "tcp":
+          if (this.ztcp && this.ztcp.socket) {
+            return await tcpCallback();
+          } else {
             throw new ZkError(
-                err as Error,
-                `[${this._connectionType?.toUpperCase()}] ${command}`,
-                this.ip
+              new Error("TCP socket isn't connected!"),
+              `[TCP] ${command}`,
+              this.ip,
             );
-        }
-    }
+          }
 
-    async createSocket(
-        cbErr?: (err: Error) => void,
-        cbClose?: (type: string) => void
-    ): Promise<boolean> {
+        case "udp":
+          if (this.zudp && this.zudp.socket) {
+            return await udpCallback();
+          } else {
+            throw new ZkError(
+              new Error("UDP socket isn't connected!"),
+              `[UDP] ${command}`,
+              this.ip,
+            );
+          }
+        default:
+          throw new ZkError(
+            new Error("Unsupported connection type or socket isn't connected!"),
+            "",
+            this.ip,
+          );
+      }
+    } catch (err) {
+      throw new ZkError(
+        err as Error,
+        `[${this._connectionType?.toUpperCase()}] ${command}`,
+        this.ip,
+      );
+    }
+  }
+
+  async createSocket(
+    cbErr?: (err: Error) => void,
+    cbClose?: (type: string) => void,
+  ): Promise<boolean> {
+    try {
+      if (this.ztcp.socket) {
         try {
-            if (this.ztcp.socket) {
-                try {
-                    await this.ztcp.connect();
-                    console.log('TCP reconnection successful');
-                    this._connectionType = 'tcp';
-                    return true;
-                } catch (err) {
-                    throw new ZkError(err as Error, 'TCP CONNECT', this.ip);
-                }
-            } else {
-                try {
-                    await this.ztcp.createSocket(cbErr, cbClose);
-                    await this.ztcp.connect();
-                    console.log('TCP connection successful');
-                    this._connectionType = 'tcp';
-                    return true;
-                } catch (err) {
-                    throw new ZkError(err as Error, 'TCP CONNECT', this.ip);
-                }
-            }
+          await this.ztcp.connect();
+          console.log("TCP reconnection successful");
+          this._connectionType = "tcp";
+          return true;
         } catch (err) {
-            try {
-                if (this.ztcp.socket) await this.ztcp.disconnect();
-            } catch (disconnectErr) {
-                console.error('Error disconnecting TCP:', disconnectErr);
-            }
-
-            if (err.code !== ERROR_TYPES.ECONNREFUSED) {
-                throw new ZkError(err as Error, 'TCP CONNECT', this.ip);
-            }
-
-            try {
-                if (!this.zudp.socket) {
-                    await this.zudp.createSocket(cbErr, cbClose);
-                }
-                await this.zudp.connect();
-                console.log('UDP connection successful');
-                this._connectionType = 'udp';
-                return true;
-            } catch (err) {
-                if ((err as Error).message !== 'EADDRINUSE') {
-                    this._connectionType = null;
-                    try {
-                        await this.zudp.disconnect();
-                    } catch (disconnectErr) {
-                        console.error('Error disconnecting UDP:', disconnectErr);
-                    }
-                    throw new ZkError(err as Error, 'UDP CONNECT', this.ip);
-                }
-
-                this._connectionType = 'udp';
-                return true;
-            }
+          throw new ZkError(err as Error, "TCP CONNECT", this.ip);
         }
-    }
+      } else {
+        try {
+          await this.ztcp.createSocket(cbErr, cbClose);
+          await this.ztcp.connect();
+          console.log("TCP connection successful");
+          this._connectionType = "tcp";
+          return true;
+        } catch (err) {
+          throw new ZkError(err as Error, "TCP CONNECT", this.ip);
+        }
+      }
+    } catch (err) {
+      try {
+        if (this.ztcp.socket) await this.ztcp.disconnect();
+      } catch (disconnectErr) {
+        console.error("Error disconnecting TCP:", disconnectErr);
+      }
 
-    async getUsers(): Promise<{ data: User[] | UserData28[]}> {
-        return this.functionWrapper(
-            () => this.ztcp._userService.getUsers(),
-            () => this.zudp.getUsers(),
-            'GET_USERS'
-        );
-    }
+      if (err.code !== ERROR_TYPES.ECONNREFUSED) {
+        throw new ZkError(err as Error, "TCP CONNECT", this.ip);
+      }
 
-    async getTime(): Promise<Date> {
-        return this.functionWrapper(
-            () => this.ztcp.getTime(),
-            () => this.zudp.getTime(),
-            'GET_TIME'
-        );
-    }
+      try {
+        if (!this.zudp.socket) {
+          await this.zudp.createSocket(cbErr, cbClose);
+        }
+        await this.zudp.connect();
+        console.log("UDP connection successful");
+        this._connectionType = "udp";
+        return true;
+      } catch (err) {
+        if ((err as Error).message !== "EADDRINUSE") {
+          this._connectionType = null;
+          try {
+            await this.zudp.disconnect();
+          } catch (disconnectErr) {
+            console.error("Error disconnecting UDP:", disconnectErr);
+          }
+          throw new ZkError(err as Error, "UDP CONNECT", this.ip);
+        }
 
-    async setTime(t: Date | string): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp.setTime(t),
-            () => this.zudp.setTime(t),
-            'SET_TIME'
-        );
+        this._connectionType = "udp";
+        return true;
+      }
     }
+  }
 
-    async voiceTest(): Promise<void> {
-        return this.functionWrapper(
-            () => this.ztcp.voiceTest(),
-            async () => { throw new Error('UDP voice test not supported'); },
-            'VOICE_TEST'
-        );
-    }
+  async getUsers(): Promise<{ data: User[] | UserData28[] }> {
+    return this.functionWrapper(
+      () => this.ztcp._userService.getUsers(),
+      () => this.zudp.getUsers(),
+      "GET_USERS",
+    );
+  }
 
-    async getProductTime(): Promise<Date> {
-        return this.functionWrapper(
-            () => this.ztcp.getProductTime(),
-            async () => { throw new Error('UDP get product time not supported'); },
-            'GET_PRODUCT_TIME'
-        );
-    }
+  async getTime(): Promise<Date> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getTime(),
+      () => this.zudp.getTime(),
+      "GET_TIME",
+    );
+  }
 
-    async getVendor(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getVendor(),
-            async () => { throw new Error('UDP get vendor not supported'); },
-            'GET_VENDOR'
-        );
-    }
+  async setTime(t: Date | string): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.setTime(t),
+      () => this.zudp.setTime(t),
+      "SET_TIME",
+    );
+  }
 
-    async getMacAddress(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getMacAddress(),
-            async () => { throw new Error('UDP get MAC address not supported'); },
-            'GET_MAC_ADDRESS'
-        );
-    }
+  async voiceTest(): Promise<void> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.voiceTest(),
+      async () => {
+        throw new Error("UDP voice test not supported");
+      },
+      "VOICE_TEST",
+    );
+  }
 
-    async getSerialNumber(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getSerialNumber(),
-            async () => { throw new Error('UDP get serial number not supported'); },
-            'GET_SERIAL_NUMBER'
-        );
-    }
+  async getProductTime(): Promise<Date> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getProductTime(),
+      async () => {
+        throw new Error("UDP get product time not supported");
+      },
+      "GET_PRODUCT_TIME",
+    );
+  }
 
-    async getDeviceVersion(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getDeviceVersion(),
-            async () => { throw new Error('UDP get device version not supported'); },
-            'GET_DEVICE_VERSION'
-        );
-    }
+  async getVendor(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getVendor(),
+      async () => {
+        throw new Error("UDP get vendor not supported");
+      },
+      "GET_VENDOR",
+    );
+  }
 
-    async getDeviceName(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getDeviceName(),
-            async () => { throw new Error('UDP get device name not supported'); },
-            'GET_DEVICE_NAME'
-        );
-    }
+  async getMacAddress(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getMacAddress(),
+      async () => {
+        throw new Error("UDP get MAC address not supported");
+      },
+      "GET_MAC_ADDRESS",
+    );
+  }
 
-    async getPlatform(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getPlatform(),
-            async () => { throw new Error('UDP get platform not supported'); },
-            'GET_PLATFORM'
-        );
-    }
+  async getSerialNumber(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getSerialNumber(),
+      async () => {
+        throw new Error("UDP get serial number not supported");
+      },
+      "GET_SERIAL_NUMBER",
+    );
+  }
 
-    async getOS(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getOS(),
-            async () => { throw new Error('UDP get OS not supported'); },
-            'GET_OS'
-        );
-    }
+  async getDeviceVersion(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getDeviceVersion(),
+      async () => {
+        throw new Error("UDP get device version not supported");
+      },
+      "GET_DEVICE_VERSION",
+    );
+  }
 
-    async getWorkCode(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getWorkCode(),
-            async () => { throw new Error('UDP get work code not supported'); },
-            'GET_WORK_CODE'
-        );
-    }
+  async getDeviceName(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getDeviceName(),
+      async () => {
+        throw new Error("UDP get device name not supported");
+      },
+      "GET_DEVICE_NAME",
+    );
+  }
 
-    async getPIN(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getPIN(),
-            async () => { throw new Error('UDP get PIN not supported'); },
-            'GET_PIN'
-        );
-    }
+  async getPlatform(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getPlatform(),
+      async () => {
+        throw new Error("UDP get platform not supported");
+      },
+      "GET_PLATFORM",
+    );
+  }
 
-    async getFaceOn(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getFaceOn(),
-            async () => { throw new Error('UDP get face on not supported'); },
-            'GET_FACE_ON'
-        );
-    }
+  async getOS(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getOS(),
+      async () => {
+        throw new Error("UDP get OS not supported");
+      },
+      "GET_OS",
+    );
+  }
 
-    async getSSR(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getSSR(),
-            async () => { throw new Error('UDP get SSR not supported'); },
-            'GET_SSR'
-        );
-    }
+  async getWorkCode(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getWorkCode(),
+      async () => {
+        throw new Error("UDP get work code not supported");
+      },
+      "GET_WORK_CODE",
+    );
+  }
 
-    async getFirmware(): Promise<string> {
-        return this.functionWrapper(
-            () => this.ztcp.getFirmware(),
-            async () => { throw new Error('UDP get firmware not supported'); },
-            'GET_FIRMWARE'
-        );
-    }
-    /** Update or create a user if user id/pin not exists
-     * @param user_id {string} user id/pin for customer
-     * @param name {string} user name
-     * @param password {string} user password
-     * @param role {number} role/privilege id number
-     * @param cardno {number} card number/id
-     */
-    async setUser(
-        user_id: string,
-        name: string,
-        password: string,
-        role: number = 0,
-        cardno: number = 0
-    ): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp._userService.setUser(user_id, name, password, role, cardno),
-            async () => { throw new Error('UDP set user not supported'); },
-            'SET_USER'
-        );
-    }
+  async getPIN(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getPIN(),
+      async () => {
+        throw new Error("UDP get PIN not supported");
+      },
+      "GET_PIN",
+    );
+  }
 
-    /**
-     * Delete user by a given user id/pin
-     * @param user_id {string}
-     */
-    async deleteUser(user_id: string): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp._userService.DeleteUser(user_id),
-            async () => { throw new Error('UDP delete user not supported'); },
-            'DELETE_USER'
-        );
-    }
+  async getFaceOn(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getFaceOn(),
+      async () => {
+        throw new Error("UDP get face on not supported");
+      },
+      "GET_FACE_ON",
+    );
+  }
 
-    async getAttendanceSize(): Promise<number> {
-        return this.functionWrapper(
-            () => this.ztcp.getAttendanceSize(),
-            async () => { throw new Error('UDP get attendance size not supported'); },
-            'GET_ATTENDANCE_SIZE'
-        );
-    }
+  async getSSR(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getSSR(),
+      async () => {
+        throw new Error("UDP get SSR not supported");
+      },
+      "GET_SSR",
+    );
+  }
 
-    async getAttendances(cb?: (progress: number, total: number) => void): Promise<{ data: Attendance[] | RecordData16[]; err?: Error | null }> {
-        return this.functionWrapper(
-            () => this.ztcp.getAttendances(cb),
-            () => this.zudp.getAttendances(cb),
-            'GET_ATTENDANCES'
-        );
-    }
+  async getFirmware(): Promise<string> {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getFirmware(),
+      async () => {
+        throw new Error("UDP get firmware not supported");
+      },
+      "GET_FIRMWARE",
+    );
+  }
+  /** Update or create a user if user id/pin not exists
+   * @param user_id {string} user id/pin for customer
+   * @param name {string} user name
+   * @param password {string} user password
+   * @param role {number} role/privilege id number
+   * @param cardno {number} card number/id
+   */
+  async setUser(
+    user_id: string,
+    name: string,
+    password: string,
+    role: number = 0,
+    cardno: number = 0,
+  ): Promise<boolean> {
+    return this.functionWrapper(
+      () =>
+        this.ztcp._userService.setUser(user_id, name, password, role, cardno),
+      async () => {
+        throw new Error("UDP set user not supported");
+      },
+      "SET_USER",
+    );
+  }
 
-    async getRealTimeLogs(cb: (log: any) => void): Promise<void> {
-        return this.functionWrapper(
-            () => this.ztcp.getRealTimeLogs(cb),
-            () => this.zudp.getRealTimeLogs(cb),
-            'GET_REAL_TIME_LOGS'
-        );
-    }
+  /**
+   * Delete user by a given user id/pin
+   * @param user_id {string}
+   */
+  async deleteUser(user_id: string): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp._userService.DeleteUser(user_id),
+      async () => {
+        throw new Error("UDP delete user not supported");
+      },
+      "DELETE_USER",
+    );
+  }
 
-    async getTemplates(): Promise<Record<string, Finger[]>> {
-        return this.functionWrapper(
-            () => this.ztcp.getTemplates(),
-            async () => { throw new Error('UDP get templates not supported'); },
-            'GET_TEMPLATES'
-        );
-    }
+  async getAttendanceSize(): Promise<number> {
+    return this.functionWrapper(
+      () => this.ztcp.getAttendanceSize(),
+      async () => {
+        throw new Error("UDP get attendance size not supported");
+      },
+      "GET_ATTENDANCE_SIZE",
+    );
+  }
 
-    /**
-     * Get a user template for a given user id/pin and finger id
-     * @param user_id {string} user id/pin
-     * @param fid {number} finger index
-     */
-    async getUserTemplate(user_id: string, fid: number) {
-        return await this.functionWrapper(
-            async () => await this.ztcp._userService.DownloadFp(user_id, fid),
-            async () => { throw new Error('UDP get user template not implemented'); },
-            'GET_USER_TEMPLATE'
-        );
-    }
+  async getAttendances(
+    cb?: (progress: number, total: number) => void,
+  ): Promise<{ data: Attendance[] | RecordData16[]; err?: Error | null }> {
+    return this.functionWrapper(
+      () => this.ztcp._transactionService.getAttendances(cb),
+      () => this.zudp.getAttendances(cb),
+      "GET_ATTENDANCES",
+    );
+  }
 
-    /**
-     * Upload a single fingerprint for a given user id
-     * @param user_id {string} user id/pin for customer
-     * @param fingerTemplate {string} finger template in base64 string
-     * @param fid {number} finger id is a number between 0 and 9
-     * @param fp_valid {number} finger flag. e.g., valid=1, duress=3
-     */
-    async uploadFingerTemplate(user_id: string, fingerTemplate: string, fid: number, fp_valid: number){
-        return await this.functionWrapper(
-            async () => await this.ztcp._userService.uploadFingerTemplate(user_id, fingerTemplate, fid, fp_valid),
-            async () => { throw new Error('UDP get user template not implemented'); },
-            'UPLOAD_USER_TEMPLATE'
-        );
-    }
-    /**
-     * save user and template
-     *
-     * @param {string} user_id - user id for customer
-     * @param {Finger[]} fingers - Array of finger class
-     */
-    async saveUserTemplate(user_id: string, fingers: Finger[] = []): Promise<void> {
-        return await this.functionWrapper(
-            async () => await this.ztcp._userService.saveTemplates(user_id, fingers),
-            async () => { throw new Error('UDP save user template not supported'); },
-            'SAVE_USER_TEMPLATE'
-        );
-    }
+  async getRealTimeLogs(cb: (log: any) => void): Promise<void> {
+    return this.functionWrapper(
+      () => this.ztcp.getRealTimeLogs(cb),
+      () => this.zudp.getRealTimeLogs(cb),
+      "GET_REAL_TIME_LOGS",
+    );
+  }
 
-    /**
-     * Delete a single finger template by user id and finger index
-     * @param user_id {string} user id/pin for customer
-     * @param fid {number} finger index
-     */
-    async deleteFinger(user_id?: string, fid?: number): Promise<boolean> {
-        if (fid > 9 || 0 > fid) throw new Error("fid params out of index")
-        return this.functionWrapper(
-            () => this.ztcp._userService.deleteFinger(user_id, fid),
-            async () => { throw new Error('UDP delete finger not supported'); },
-            'DELETE_FINGER'
-        );
-    }
+  async getTemplates(): Promise<Record<string, Finger[]>> {
+    return this.functionWrapper(
+      () => this.ztcp.getTemplates(),
+      async () => {
+        throw new Error("UDP get templates not supported");
+      },
+      "GET_TEMPLATES",
+    );
+  }
 
-    /**
-     * Start to enroll a finger template
-     * @param user_id {string} user id/pin for customer
-     * @param temp_id {number} finger index
-     */
-    async enrollUser(user_id: string, temp_id: number): Promise<boolean> {
-        if (temp_id < 0 || temp_id > 9) throw new Error("temp_id out of range 0-9")
-        return this.functionWrapper(
-            () => this.ztcp._userService.enrollInfo(user_id, temp_id),
-            async () => { throw new Error('UDP enroll user not supported'); },
-            'ENROLL_USER'
-        );
-    }
+  /**
+   * Get a user template for a given user id/pin and finger id
+   * @param user_id {string} user id/pin
+   * @param fid {number} finger index
+   */
+  async getUserTemplate(user_id: string, fid: number) {
+    return await this.functionWrapper(
+      async () => await this.ztcp._userService.DownloadFp(user_id, fid),
+      async () => {
+        throw new Error("UDP get user template not implemented");
+      },
+      "GET_USER_TEMPLATE",
+    );
+  }
 
-    async verifyUser(user_id: string): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp._userService.verify(user_id),
-            async () => { throw new Error('UDP verify user not supported'); },
-            'VERIFY_USER'
-        );
-    }
+  /**
+   * Upload a single fingerprint for a given user id
+   * @param user_id {string} user id/pin for customer
+   * @param fingerTemplate {string} finger template in base64 string
+   * @param fid {number} finger id is a number between 0 and 9
+   * @param fp_valid {number} finger flag. e.g., valid=1, duress=3
+   */
+  async uploadFingerTemplate(
+    user_id: string,
+    fingerTemplate: string,
+    fid: number,
+    fp_valid: number,
+  ) {
+    return await this.functionWrapper(
+      async () =>
+        await this.ztcp._userService.uploadFingerTemplate(
+          user_id,
+          fingerTemplate,
+          fid,
+          fp_valid,
+        ),
+      async () => {
+        throw new Error("UDP get user template not implemented");
+      },
+      "UPLOAD_USER_TEMPLATE",
+    );
+  }
+  /**
+   * save user and template
+   *
+   * @param {string} user_id - user id for customer
+   * @param {Finger[]} fingers - Array of finger class
+   */
+  async saveUserTemplate(
+    user_id: string,
+    fingers: Finger[] = [],
+  ): Promise<void> {
+    return await this.functionWrapper(
+      async () => await this.ztcp._userService.saveTemplates(user_id, fingers),
+      async () => {
+        throw new Error("UDP save user template not supported");
+      },
+      "SAVE_USER_TEMPLATE",
+    );
+  }
 
-    async restartDevice(): Promise<void> {
-        return this.functionWrapper(
-            () => this.ztcp.restartDevice(),
-            async () => { throw new Error('UDP restart device not supported'); },
-            'RESTART_DEVICE'
-        );
-    }
+  /**
+   * Delete a single finger template by user id and finger index
+   * @param user_id {string} user id/pin for customer
+   * @param fid {number} finger index
+   */
+  async deleteFinger(user_id?: string, fid?: number): Promise<boolean> {
+    if (fid > 9 || 0 > fid) throw new Error("fid params out of index");
+    return this.functionWrapper(
+      () => this.ztcp._userService.deleteFinger(user_id, fid),
+      async () => {
+        throw new Error("UDP delete finger not supported");
+      },
+      "DELETE_FINGER",
+    );
+  }
 
-    async getSizes(): Promise<FreeSizes> {
-        return this.functionWrapper(
-            () => this.ztcp.getSizes(),
-            () => {throw new Error('not implemented ofr UDP')},
-            'GET_SIZES'
-        );
-    }
+  /**
+   * Start to enroll a finger template
+   * @param user_id {string} user id/pin for customer
+   * @param temp_id {number} finger index
+   */
+  async enrollUser(user_id: string, temp_id: number): Promise<unknown> {
+    if (temp_id < 0 || temp_id > 9) throw new Error("temp_id out of range 0-9");
+    return this.functionWrapper(
+      () => this.ztcp._userService.enrollInfo(user_id, temp_id),
+      async () => {
+        throw new Error("UDP enroll user not supported");
+      },
+      "ENROLL_USER",
+    );
+  }
 
-    async disconnect(): Promise<void> {
-        return this.functionWrapper(
-            () => this.ztcp.disconnect(),
-            () => this.zudp.disconnect(),
-            'DISCONNECT'
-        );
-    }
+  async verifyUser(user_id: string): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp._userService.verify(user_id),
+      async () => {
+        throw new Error("UDP verify user not supported");
+      },
+      "VERIFY_USER",
+    );
+  }
 
+  async restartDevice(): Promise<void> {
+    return this.functionWrapper(
+      () => this.ztcp.restartDevice(),
+      async () => {
+        throw new Error("UDP restart device not supported");
+      },
+      "RESTART_DEVICE",
+    );
+  }
 
-    async freeData(): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp.freeData(),
-            () => this.zudp.freeData(),
-            'FREE_DATA'
-        );
-    }
+  async getSizes(): Promise<FreeSizes> {
+    return this.functionWrapper(
+      () => this.ztcp.getSizes(),
+      () => {
+        throw new Error("not implemented ofr UDP");
+      },
+      "GET_SIZES",
+    );
+  }
 
-    async disableDevice(): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp.disableDevice(),
-            () => this.zudp.disableDevice(),
-            'DISABLE_DEVICE'
-        );
-    }
+  async disconnect(): Promise<void> {
+    return this.functionWrapper(
+      () => this.ztcp.disconnect(),
+      () => this.zudp.disconnect(),
+      "DISCONNECT",
+    );
+  }
 
-    async enableDevice(): Promise<boolean> {
-        return this.functionWrapper(
-            () => this.ztcp.enableDevice(),
-            () => this.zudp.enableDevice(),
-            'ENABLE_DEVICE'
-        );
-    }
+  async freeData(): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp.freeData(),
+      () => this.zudp.freeData(),
+      "FREE_DATA",
+    );
+  }
 
-    async getInfo(): Promise<DeviceInfo> {
-        return this.functionWrapper(
-            () => this.ztcp.getInfo(),
-            () => this.zudp.getInfo(),
-            'GET_INFO'
-        );
-    }
+  async disableDevice(): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp.disableDevice(),
+      () => this.zudp.disableDevice(),
+      "DISABLE_DEVICE",
+    );
+  }
 
-    async clearAttendanceLog(): Promise<any> {
-        return this.functionWrapper(
-            () => this.ztcp.clearAttendanceLog(),
-            () => this.zudp.clearAttendanceLog(),
-            'CLEAR_ATTENDANCE_LOG'
-        );
-    }
+  async enableDevice(): Promise<boolean> {
+    return this.functionWrapper(
+      () => this.ztcp.enableDevice(),
+      () => this.zudp.enableDevice(),
+      "ENABLE_DEVICE",
+    );
+  }
 
-    async clearData(): Promise<any> {
-        return this.functionWrapper(
-            () => this.ztcp.clearData(),
-            () => this.zudp.clearData(),
-            'CLEAR_DATA'
-        );
-    }
+  async getInfo(): Promise<DeviceInfo> {
+    return this.functionWrapper(
+      () => this.ztcp.getInfo(),
+      () => this.zudp.getInfo(),
+      "GET_INFO",
+    );
+  }
 
-    async executeCmd(command: number, data: string | Buffer = ''): Promise<Buffer> {
-        return this.functionWrapper(
-            () => this.ztcp.executeCmd(command, data),
-            () => this.zudp.executeCmd(command, data),
-            'EXECUTE_CMD'
-        );
-    }
+  async clearAttendanceLog(): Promise<any> {
+    return this.functionWrapper(
+      () => this.ztcp.clearAttendanceLog(),
+      () => this.zudp.clearAttendanceLog(),
+      "CLEAR_ATTENDANCE_LOG",
+    );
+  }
 
-    async getNetworkParams() {
-        return this.functionWrapper(
-            () => this.ztcp.getNetworkParams(),
-            async () => { throw new Error('UDP getNetworkParams not implemented'); },
-            'NETWORK_PARAMS'
-        );
-    }
+  async clearData(): Promise<any> {
+    return this.functionWrapper(
+      () => this.ztcp.clearData(),
+      () => this.zudp.clearData(),
+      "CLEAR_DATA",
+    );
+  }
+
+  async executeCmd(
+    command: number,
+    data: string | Buffer = "",
+  ): Promise<Buffer> {
+    return this.functionWrapper(
+      () => this.ztcp.executeCmd(command, data),
+      () => this.zudp.executeCmd(command, data),
+      "EXECUTE_CMD",
+    );
+  }
+
+  async getNetworkParams() {
+    return this.functionWrapper(
+      () => this.ztcp._optionsService.getNetworkParams(),
+      async () => {
+        throw new Error("UDP getNetworkParams not implemented");
+      },
+      "NETWORK_PARAMS",
+    );
+  }
 }
 
-export type { Attendance, User, Finger, DeviceInfo, Zklib }
+export type { Attendance, User, Finger, DeviceInfo, Zklib };

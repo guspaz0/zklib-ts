@@ -35,4 +35,4 @@ const encode = date => {
     );
 };
 
-export default {encode, decode}
+export default {encode, decode};

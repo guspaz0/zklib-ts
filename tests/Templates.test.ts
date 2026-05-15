@@ -1,8 +1,8 @@
-import Zklib from "../src";
-import { User } from "../src/models/User";
-import { Finger } from "../src/models/Finger";
-import { UserData28 } from "../src/helper/utils";
-import { ZkError } from "../src/exceptions/handler";
+import Zklib from '../src';
+import { User } from '../src/models/User';
+import { Finger } from '../src/models/Finger';
+import { UserData28 } from '../src/helper/utils';
+import { ZkError } from '../src/exceptions/handler';
 
 jest.setTimeout(15000); // 15 seconds timeout for device operations
 
@@ -68,7 +68,7 @@ describe('Zkteco Template Management Tests', () => {
             const saveResult = await zkInstance.saveUserTemplate(pepeUser.user_id, someoneTemplates);
             expect(saveResult).toBe(true);
         } catch (error) {
-            expect(error).toBeInstanceOf(ZkError || Error)
+            expect(error).toBeInstanceOf(ZkError || Error);
         }
 
 
@@ -85,7 +85,7 @@ describe('Zkteco Template Management Tests', () => {
         if (!Array.isArray(usersData.data)) {
             throw new Error('Invalid users data format');
         }
-        usersData = await zkInstance.getUsers()
+        usersData = await zkInstance.getUsers();
 
         const pepeUser = usersData.data.find(u => u.uid === TEST_UID) as User;
         if (!pepeUser) {
@@ -94,26 +94,26 @@ describe('Zkteco Template Management Tests', () => {
 
         try {
             // Act & Assert
-            await zkInstance.saveUserTemplate(pepeUser.user_id, [])
+            await zkInstance.saveUserTemplate(pepeUser.user_id, []);
         } catch (error) {
-            expect(error).toBeInstanceOf(ZkError || Error)
+            expect(error).toBeInstanceOf(ZkError || Error);
         }
     });
 
     test('should can delete a finger template', async () => {
-        const deleted = await zkInstance.deleteFinger(TEST_USERID, someoneTemplates[0].fid)
+        const deleted = await zkInstance.deleteFinger(TEST_USERID, someoneTemplates[0].fid);
         expect(deleted).toBeTruthy();
-    })
+    });
 
     test('should can upload a base64 string fingerprint', async () => {
-        const baseTemp = someoneTemplates[0]
+        const baseTemp = someoneTemplates[0];
         const fingerTemplateBase64 = baseTemp.template.toString('base64');
-        const uploaded = await zkInstance.uploadFingerTemplate(TEST_USERID,fingerTemplateBase64, baseTemp.fid, baseTemp.valid)
-        expect(uploaded).toBeTruthy()
+        const uploaded = await zkInstance.uploadFingerTemplate(TEST_USERID,fingerTemplateBase64, baseTemp.fid, baseTemp.valid);
+        expect(uploaded).toBeTruthy();
 
-        const getTemp = await zkInstance.getUserTemplate(TEST_USERID, baseTemp.fid)
-        expect(getTemp).toEqual(baseTemp.template)
-    })
+        const getTemp = await zkInstance.getUserTemplate(TEST_USERID, baseTemp.fid);
+        expect(getTemp).toEqual(baseTemp.template);
+    });
 
     test('should fail with invalid user', async () => {
         // Arrange
@@ -129,7 +129,7 @@ describe('Zkteco Template Management Tests', () => {
 
         // Act & Assert
         try {
-            await zkInstance.saveUserTemplate(invalidUser.user_id, someoneTemplates)
+            await zkInstance.saveUserTemplate(invalidUser.user_id, someoneTemplates);
         } catch (e) {
             expect(e).toBeInstanceOf(ZkError || Error);
         }

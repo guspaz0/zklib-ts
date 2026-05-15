@@ -1,6 +1,6 @@
 /**
  * Represents an Attendance Records
- */ import {type} from "node:os";
+ */
 
 export class Attendance {
     /** Internal serial number for the user */

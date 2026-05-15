@@ -1,6 +1,6 @@
-import {ZTCP} from "../ztcp";
-import {COMMANDS, REQUEST_DATA} from "../helper/command";
-import {decodeRecordData40} from "../helper/utils";
+import {ZTCP} from '../ztcp';
+import {COMMANDS, REQUEST_DATA} from '../helper/command';
+import {decodeRecordData40} from '../helper/utils';
 
 export class TransactionService {
     _zkTcp: ZTCP;
@@ -56,15 +56,15 @@ export class TransactionService {
     async clearAttendanceLog() {
         try {
             // Execute the command to clear attendance logs
-            await this._zkTcp.disableDevice()
+            await this._zkTcp.disableDevice();
 
             const buf = await this._zkTcp.executeCmd(COMMANDS.CMD_CLEAR_ATTLOG, '');
 
-            await this._zkTcp.refreshData()
+            await this._zkTcp.refreshData();
 
-            await this._zkTcp.enableDevice()
+            await this._zkTcp.enableDevice();
 
-            return !!buf
+            return !!buf;
         } catch (err) {
             // Log the error for debugging purposes
             console.error('Error clearing attendance log:', err);

@@ -1,5 +1,5 @@
-import Zklib from "../src";
-import { ZkError } from "../src/exceptions/handler";
+import Zklib from '../src';
+import { ZkError } from '../src/exceptions/handler';
 
 const DEVICE_IP = process.env.DEVICE_IP;
 const DEVICE_PORT = +process.env.DEVICE_PORT;
@@ -49,7 +49,7 @@ describe('Zkteco Enrollment Tests', () => {
             const result = await zkInstance.enrollUser(TEST_UID, TEST_FID, TEST_USERID);
             expect(result).toBe(true);
         } catch (error) {
-            expect(error).toBeInstanceOf(ZkError || Error)
+            expect(error).toBeInstanceOf(ZkError || Error);
         } finally {
             // Verify the fingerprint was enrolled
             const templates = await zkInstance.getTemplates();
